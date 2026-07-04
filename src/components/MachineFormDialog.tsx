@@ -16,13 +16,14 @@ interface Props {
 }
 
 const emptyMachine = (code: string): Omit<Machine, "id"> => ({
-  code, name: "", brand: "", model: "", serial: "",
-  purchaseDate: "", cost: 0, area: "", department: "",
+  code, patrimonialCode: "", name: "", brand: "", model: "", serial: "",
+  purchaseDate: "", manufactureYear: undefined, acquisitionYear: undefined, cost: 0,
+  area: "", department: "",
   powerKw: 0, voltageV: 220, frequencyHz: 60, weightKg: 0,
   annualHours: 0, daysPerWeek: 5,
   status: "Operativo", criticality: "Medio",
   observations: "", photo: "", hoursOfUse: 0,
-  components: [],
+  components: [], documents: [],
   location: "", acquiredAt: "",
 });
 
