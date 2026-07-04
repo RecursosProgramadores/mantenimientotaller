@@ -115,7 +115,10 @@ function MachinesPage() {
           <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" className="rounded-none" onClick={() => setView("table")}><List className="h-4 w-4" /></Button>
         </div>
 
-        <Button className="ml-auto" onClick={() => { setEditing(null); setOpen(true); }}>
+        <Button variant="outline" className="ml-auto" onClick={() => printInventory(machines, settings.institutionName)}>
+          <Printer className="h-4 w-4 mr-1" /> Imprimir inventario
+        </Button>
+        <Button onClick={() => { setEditing(null); setOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" /> Nueva máquina
         </Button>
       </div>
