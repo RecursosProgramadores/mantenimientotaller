@@ -16,11 +16,14 @@ export interface CriticalComponent {
 export interface Machine {
   id: string;
   code: string;
+  patrimonialCode?: string;
   name: string;
   brand: string;
   model: string;
   serial?: string;
   purchaseDate?: string;
+  manufactureYear?: number;
+  acquisitionYear?: number;
   cost?: number;
   area?: string;
   department?: string;
@@ -36,6 +39,7 @@ export interface Machine {
   photo?: string;
   hoursOfUse: number;
   components: CriticalComponent[];
+  documents?: AppDocument[];
   sheetUpdatedAt?: string;
   location: string;
   acquiredAt: string;
