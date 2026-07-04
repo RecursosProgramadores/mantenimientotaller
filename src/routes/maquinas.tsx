@@ -15,9 +15,10 @@ import { CriticalityBadge } from "@/components/CriticalityBadge";
 import { MachineFormDialog } from "@/components/MachineFormDialog";
 import { useMantePro, type Machine } from "@/context/MantePro";
 import {
-  Plus, Trash2, Factory, Search, LayoutGrid, List, Eye, Wrench, Store,
+  Plus, Trash2, Factory, Search, LayoutGrid, List, Eye, Wrench, Store, Printer,
 } from "lucide-react";
 import { toast } from "sonner";
+import { printInventory } from "@/lib/print-machines";
 
 export const Route = createFileRoute("/maquinas")({
   head: () => ({
