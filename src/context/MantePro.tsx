@@ -586,6 +586,12 @@ export function MantePoProvider({ children }: { children: ReactNode }) {
     deleteComponent: (machineId, componentId) => setMachines((x) => x.map((m) =>
       m.id === machineId ? { ...m, components: m.components.filter((c) => c.id !== componentId), sheetUpdatedAt: todayISO() } : m,
     )),
+    addMachineDocuments: (machineId, docs) => setMachines((x) => x.map((m) =>
+      m.id === machineId ? { ...m, documents: [...(m.documents ?? []), ...docs] } : m,
+    )),
+    removeMachineDocument: (machineId, docId) => setMachines((x) => x.map((m) =>
+      m.id === machineId ? { ...m, documents: (m.documents ?? []).filter((d) => d.id !== docId) } : m,
+    )),
     addWorkshopRecord: (r) => {
       const id = uid();
       setWorkshopRecords((x) => [{ ...r, id }, ...x]);
