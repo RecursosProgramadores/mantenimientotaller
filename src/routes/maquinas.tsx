@@ -33,7 +33,7 @@ export const Route = createFileRoute("/maquinas")({
 type SortKey = "name" | "code" | "lastMaint" | "criticality";
 
 function MachinesPage() {
-  const { machines, records, deleteMachine, updateMachine } = useMantePro();
+  const { machines, records, deleteMachine, updateMachine, settings } = useMantePro();
   const [q, setQ] = useState("");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [status, setStatus] = useState<string>("todos");
