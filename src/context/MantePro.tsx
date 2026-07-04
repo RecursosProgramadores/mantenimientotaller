@@ -16,11 +16,14 @@ export interface CriticalComponent {
 export interface Machine {
   id: string;
   code: string;
+  patrimonialCode?: string;
   name: string;
   brand: string;
   model: string;
   serial?: string;
   purchaseDate?: string;
+  manufactureYear?: number;
+  acquisitionYear?: number;
   cost?: number;
   area?: string;
   department?: string;
@@ -36,6 +39,7 @@ export interface Machine {
   photo?: string;
   hoursOfUse: number;
   components: CriticalComponent[];
+  documents?: AppDocument[];
   sheetUpdatedAt?: string;
   location: string;
   acquiredAt: string;
@@ -189,6 +193,8 @@ interface State {
   deleteWorkshop: (id: string) => void;
   upsertComponent: (machineId: string, c: CriticalComponent) => void;
   deleteComponent: (machineId: string, componentId: string) => void;
+  addMachineDocuments: (machineId: string, docs: AppDocument[]) => void;
+  removeMachineDocument: (machineId: string, docId: string) => void;
   addWorkshopRecord: (r: Omit<WorkshopRecord, "id">) => string;
   updateWorkshopRecord: (id: string, r: Partial<WorkshopRecord>) => void;
   deleteWorkshopRecord: (id: string) => void;
@@ -579,6 +585,12 @@ export function MantePoProvider({ children }: { children: ReactNode }) {
     })),
     deleteComponent: (machineId, componentId) => setMachines((x) => x.map((m) =>
       m.id === machineId ? { ...m, components: m.components.filter((c) => c.id !== componentId), sheetUpdatedAt: todayISO() } : m,
+    )),
+    addMachineDocuments: (machineId, docs) => setMachines((x) => x.map((m) =>
+      m.id === machineId ? { ...m, documents: [...(m.documents ?? []), ...docs] } : m,
+    )),
+    removeMachineDocument: (machineId, docId) => setMachines((x) => x.map((m) =>
+      m.id === machineId ? { ...m, documents: (m.documents ?? []).filter((d) => d.id !== docId) } : m,
     )),
     addWorkshopRecord: (r) => {
       const id = uid();

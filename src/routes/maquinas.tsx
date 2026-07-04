@@ -15,9 +15,10 @@ import { CriticalityBadge } from "@/components/CriticalityBadge";
 import { MachineFormDialog } from "@/components/MachineFormDialog";
 import { useMantePro, type Machine } from "@/context/MantePro";
 import {
-  Plus, Trash2, Factory, Search, LayoutGrid, List, Eye, Wrench, Store,
+  Plus, Trash2, Factory, Search, LayoutGrid, List, Eye, Wrench, Store, Printer,
 } from "lucide-react";
 import { toast } from "sonner";
+import { printInventory } from "@/lib/print-machines";
 
 export const Route = createFileRoute("/maquinas")({
   head: () => ({
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/maquinas")({
 type SortKey = "name" | "code" | "lastMaint" | "criticality";
 
 function MachinesPage() {
-  const { machines, records, deleteMachine, updateMachine } = useMantePro();
+  const { machines, records, deleteMachine, updateMachine, settings } = useMantePro();
   const [q, setQ] = useState("");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [status, setStatus] = useState<string>("todos");
@@ -114,7 +115,10 @@ function MachinesPage() {
           <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" className="rounded-none" onClick={() => setView("table")}><List className="h-4 w-4" /></Button>
         </div>
 
-        <Button className="ml-auto" onClick={() => { setEditing(null); setOpen(true); }}>
+        <Button variant="outline" className="ml-auto" onClick={() => printInventory(machines, settings.institutionName)}>
+          <Printer className="h-4 w-4 mr-1" /> Imprimir inventario
+        </Button>
+        <Button onClick={() => { setEditing(null); setOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" /> Nueva máquina
         </Button>
       </div>
