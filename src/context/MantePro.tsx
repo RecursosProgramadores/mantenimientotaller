@@ -193,6 +193,8 @@ interface State {
   deleteWorkshop: (id: string) => void;
   upsertComponent: (machineId: string, c: CriticalComponent) => void;
   deleteComponent: (machineId: string, componentId: string) => void;
+  addMachineDocuments: (machineId: string, docs: AppDocument[]) => void;
+  removeMachineDocument: (machineId: string, docId: string) => void;
   addWorkshopRecord: (r: Omit<WorkshopRecord, "id">) => string;
   updateWorkshopRecord: (id: string, r: Partial<WorkshopRecord>) => void;
   deleteWorkshopRecord: (id: string) => void;
