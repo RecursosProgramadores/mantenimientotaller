@@ -62,12 +62,25 @@ export function MachineFormDialog({ open, onOpenChange, machine }: Props) {
 
         <Section title="Identificación">
           <Field label="Código de Identificación"><Input value={form.code} onChange={(e) => set("code", e.target.value)} className="font-mono" /></Field>
+          <Field label="Código Patrimonial"><Input value={form.patrimonialCode ?? ""} onChange={(e) => set("patrimonialCode", e.target.value)} className="font-mono" /></Field>
           <Field label="Nombre del Equipo"><Input value={form.name} onChange={(e) => set("name", e.target.value)} /></Field>
           <Field label="Marca"><Input value={form.brand} onChange={(e) => set("brand", e.target.value)} /></Field>
           <Field label="Modelo"><Input value={form.model} onChange={(e) => set("model", e.target.value)} /></Field>
           <Field label="Número de Serie"><Input value={form.serial ?? ""} onChange={(e) => set("serial", e.target.value)} className="font-mono" /></Field>
+        </Section>
+
+        <Section title="Identificación y Antigüedad">
+          <Field label="Año de Fabricación">
+            <Input type="number" min={1900} max={new Date().getFullYear()} value={form.manufactureYear ?? ""} onChange={(e) => set("manufactureYear", e.target.value ? Number(e.target.value) : undefined)} />
+          </Field>
+          <Field label="Año de Adquisición">
+            <Input type="number" min={1900} max={new Date().getFullYear()} value={form.acquisitionYear ?? ""} onChange={(e) => set("acquisitionYear", e.target.value ? Number(e.target.value) : undefined)} />
+          </Field>
           <Field label="Fecha de Compra"><Input type="date" value={form.purchaseDate ?? ""} onChange={(e) => set("purchaseDate", e.target.value)} /></Field>
           <Field label="Costo del Equipo (S/)"><Input type="number" step="0.01" value={form.cost ?? 0} onChange={(e) => set("cost", Number(e.target.value))} /></Field>
+          <Field label="Antigüedad (años) — Calculado automáticamente">
+            <Input readOnly disabled value={form.acquisitionYear ? `${new Date().getFullYear() - form.acquisitionYear} años` : "—"} className="opacity-60" />
+          </Field>
         </Section>
 
         <Section title="Ubicación">
