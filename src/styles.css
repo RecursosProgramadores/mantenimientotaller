@@ -141,3 +141,55 @@
     font-family: var(--font-mono);
   }
 }
+
+/* ── Usage Alert Animations ────────────────────────────────────────────────── */
+@keyframes pulse-amber {
+  0%, 100% { box-shadow: 0 0 6px #F59E0B44; }
+  50%       { box-shadow: 0 0 16px #F59E0BAA; }
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 8px #EF444444; }
+  50%       { box-shadow: 0 0 20px #EF4444CC; }
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 4px #22C55E22; }
+  50%       { box-shadow: 0 0 10px #22C55E66; }
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* Machine card alert states */
+.machine-card-critical {
+  animation: pulse-red 0.8s ease-in-out infinite;
+}
+
+.machine-card-warning {
+  animation: pulse-amber 2s ease-in-out infinite;
+}
+
+.machine-card-normal {
+  animation: pulse-green 3s ease-in-out infinite;
+}
+
+/* Alert indicator dots */
+.animate-pulse-fast {
+  animation: dot-pulse 0.8s ease-in-out infinite;
+}
+
+.animate-pulse-medium {
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: dot-pulse 3s ease-in-out infinite;
+}
+
+/* FAB button */
+.fab-amber {
+  animation: pulse-amber 2s ease-in-out infinite;
+}

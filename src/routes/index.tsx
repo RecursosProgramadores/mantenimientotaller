@@ -1,14 +1,14 @@
 import { formatDate, formatDateLong } from "@/lib/format";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useMantePro } from "@/context/MantePro";
+import { useMantePro, getMachineAlertStatus, getMachineUsagePct } from "@/context/MantePro";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
   LineChart, Line, XAxis, YAxis, CartesianGrid,
 } from "recharts";
-import { Factory, Wrench, Store, CalendarClock } from "lucide-react";
+import { Factory, Wrench, Store, CalendarClock, AlertTriangle, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -53,7 +53,7 @@ function Kpi({ icon: Icon, label, value, hint, tone = "primary" }: { icon: any; 
 }
 
 function Dashboard() {
-  const { machines, records, types, allDocuments } = useMantePro();
+  const { machines, records, types, allDocuments, usageCycles, notifications } = useMantePro();
   const recentDocs = allDocuments().sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)).slice(0, 5);
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -94,13 +94,44 @@ function Dashboard() {
     };
   });
 
+  // Usage alert counts
+  const warningMachines = machines.filter((m) => {
+    const c = usageCycles.find((x) => x.machineId === m.id);
+    return getMachineAlertStatus(c, m.threshold) === "warning";
+  });
+  const criticalMachines = machines.filter((m) => {
+    const c = usageCycles.find((x) => x.machineId === m.id);
+    return getMachineAlertStatus(c, m.threshold) === "critical";
+  });
+
+  // Active unread alert notifications
+  const activeAlerts = notifications
+    .filter((n) => !n.read && (n.type === "warning" || n.type === "critical"))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 3);
+
+  // Usage bar data (sorted: critical → warning → normal)
+  const usageBarData = [...machines]
+    .map((m) => {
+      const c = usageCycles.find((x) => x.machineId === m.id);
+      const pct = getMachineUsagePct(c, m.threshold);
+      const status = getMachineAlertStatus(c, m.threshold);
+      return { m, pct, status };
+    })
+    .sort((a, b) => {
+      const order = { critical: 0, warning: 1, normal: 2 };
+      return order[a.status] - order[b.status];
+    });
+
   return (
     <AppShell title="Dashboard">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Kpi icon={Factory} label="Total Máquinas" value={totalMachines} hint={`${machines.filter((m) => m.status === "Operativo").length} operativas`} />
         <Kpi icon={Wrench} label="Mantenimientos Este Mes" value={thisMonth} hint="Completados + en proceso" tone="info" />
-        <Kpi icon={Store} label="Máquinas en Taller" value={inWorkshop} hint="Servicio externo" tone="warning" />
+        <Kpi icon={Store} label="En Taller" value={inWorkshop} hint="Servicio externo" tone="warning" />
         <Kpi icon={CalendarClock} label="Próximos MP (7 días)" value={upcoming7} hint="Mantenimientos programados" tone="critical" />
+        <Kpi icon={AlertTriangle} label="Máquinas en Alerta" value={warningMachines.length} hint="Umbral parcialmente alcanzado" tone="warning" />
+        <Kpi icon={AlertCircle} label="Umbral Superado" value={criticalMachines.length} hint="Mantenimiento inmediato" tone="critical" />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -209,41 +240,96 @@ function Dashboard() {
         </Card>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      {/* ── Usage Bar Widget ── */}
+      <div className="mt-6">
         <Card className="bg-card border-border">
-          <CardHeader><CardTitle className="text-base">Documentos recientes</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            {recentDocs.length === 0 ? (
-              <div className="p-6 text-sm text-muted-foreground">Sin documentos subidos.</div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {recentDocs.map((d) => {
-                  const m = machines.find((x) => x.id === d.machineId);
-                  return (
-                    <li key={d.id} className="flex items-center gap-3 p-3 text-sm">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium">{d.name}</div>
-                        <div className="text-xs text-muted-foreground">{d.category} · {m?.code}</div>
-                      </div>
-                      <div className="text-xs text-muted-foreground">{formatDate(d.uploadedAt.slice(0,10))}</div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardHeader><CardTitle className="text-base">Estados</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Uso Actual de Máquinas</CardTitle>
+          </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {(["Operativo", "En Revisión", "En Taller", "Fuera de Servicio"] as const).map((s) => (
-                <StatusBadge key={s} status={s} />
+            <div className="space-y-3">
+              {usageBarData.map(({ m, pct, status }) => (
+                <div key={m.id} className="flex items-center gap-3">
+                  <span className="font-mono text-xs text-muted-foreground w-16 shrink-0">{m.code}</span>
+                  <span className="text-xs text-muted-foreground truncate w-36 shrink-0 hidden md:block">{m.name}</span>
+                  <div className="flex-1 h-2 rounded-full bg-border overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        status === "critical" ? "bg-red-500" :
+                        status === "warning" ? "bg-amber-500" :
+                        "bg-green-500"
+                      }`}
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
+                  </div>
+                  <span className={`text-xs font-mono w-10 text-right shrink-0 ${
+                    status === "critical" ? "text-red-400" :
+                    status === "warning" ? "text-amber-400" :
+                    "text-green-400"
+                  }`}>{pct}%</span>
+                  <span className={`text-[10px] border rounded-full px-2 py-0.5 shrink-0 ${
+                    status === "critical" ? "border-red-500/40 text-red-400" :
+                    status === "warning" ? "border-amber-500/40 text-amber-400" :
+                    "border-green-500/40 text-green-400"
+                  }`}>
+                    {status === "critical" ? "Crítico" : status === "warning" ? "Alerta" : "Normal"}
+                  </span>
+                </div>
               ))}
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Active Alerts Feed ── */}
+      {activeAlerts.length > 0 && (
+        <div className="mt-6">
+          <Card className="bg-card border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-warning" /> Alertas activas
+              </CardTitle>
+              <Link to="/notificaciones" className="text-xs text-primary hover:text-primary/80">Ver todas →</Link>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {activeAlerts.map((n) => {
+                  const machine = machines.find((m) => m.id === n.machineId);
+                  return (
+                    <li key={n.id} className="flex items-center gap-3 p-4">
+                      {n.type === "critical"
+                        ? <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
+                        : <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          {machine && (
+                            <span className="font-mono text-xs text-primary border border-border/50 bg-secondary/50 rounded px-1.5 py-0.5">
+                              {machine.code}
+                            </span>
+                          )}
+                          <span className="text-sm font-medium truncate">{n.title}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate mt-0.5">{n.message}</div>
+                      </div>
+                      <a
+                        href={`#/mantenimientos?machineId=${n.machineId}&typeId=t-correctivo&urgent=${n.type === "critical" ? "1" : "0"}`}
+                        className={`inline-flex items-center justify-center h-7 shrink-0 rounded-md border px-3 text-xs font-medium transition-colors ${
+                          n.type === "critical"
+                            ? "border-red-500/40 text-red-400 hover:bg-red-500/10"
+                            : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                        }`}
+                      >
+                        {n.type === "critical" ? "Crear OTM" : "Programar OTM"}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
     </AppShell>
   );
 }

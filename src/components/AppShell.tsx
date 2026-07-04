@@ -2,22 +2,25 @@ import { type ReactNode, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Factory, Wrench, ClipboardList, Store,
-  FileText, BarChart3, Settings, Bell, Search, Menu, User,
+  FileText, BarChart3, Settings, Search, Menu, User, Timer, Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useMantePro } from "@/context/MantePro";
+import { NotificationBell } from "@/components/NotificationBell";
 import { toast } from "sonner";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/maquinas", label: "Máquinas", icon: Factory },
   { to: "/mantenimientos", label: "Mantenimientos", icon: Wrench },
+  { to: "/uso-maquinas", label: "Uso de Máquinas", icon: Timer },
   { to: "/tipos-mantenimiento", label: "Tipos de Mantenimiento", icon: ClipboardList },
   { to: "/talleres-externos", label: "Talleres Externos", icon: Store },
   { to: "/fichas-tecnicas", label: "Fichas Técnicas", icon: FileText },
   { to: "/reportes", label: "Reportes", icon: BarChart3 },
+  { to: "/notificaciones", label: "Notificaciones", icon: Bell },
   { to: "/configuracion", label: "Configuración", icon: Settings },
 ] as const;
 
@@ -25,8 +28,10 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { machines, records, workshops, allDocuments } = useMantePro();
+  const { machines, records, workshops, allDocuments, notifications } = useMantePro();
   const [q, setQ] = useState("");
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,8 +67,9 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
         </div>
         <nav className="flex-1 overflow-y-auto px-2 py-3">
           {nav.map((item) => {
-            const active = pathname === item.to;
+            const active = pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to));
             const Icon = item.icon;
+            const isNotif = item.to === "/notificaciones";
             return (
               <Link
                 key={item.to}
@@ -77,7 +83,18 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span className="truncate">{item.label}</span>}
+                {!collapsed && (
+                  <span className="flex-1 truncate">{item.label}</span>
+                )}
+                {/* Unread badge on Notifications sidebar item */}
+                {isNotif && unreadCount > 0 && !collapsed && (
+                  <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+                {isNotif && unreadCount > 0 && collapsed && (
+                  <span className="absolute left-8 top-1 h-2 w-2 rounded-full bg-red-500" />
+                )}
               </Link>
             );
           })}
@@ -119,10 +136,8 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
               className="w-80 pl-8 bg-card border-border"
             />
           </form>
-          <Button variant="ghost" size="icon" className="relative" onClick={() => toast("3 notificaciones nuevas")}>
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
-          </Button>
+          {/* Functional notification bell */}
+          <NotificationBell />
           <div className="flex items-center gap-2 pl-2 border-l border-border">
             <div className="grid h-8 w-8 place-items-center rounded-full bg-secondary text-foreground">
               <User className="h-4 w-4" />

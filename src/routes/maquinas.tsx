@@ -1,5 +1,5 @@
 import { formatDate, formatDateLong, formatNumber } from "@/lib/format";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,9 +13,9 @@ import {
 import { StatusBadge } from "@/components/StatusBadge";
 import { CriticalityBadge } from "@/components/CriticalityBadge";
 import { MachineFormDialog } from "@/components/MachineFormDialog";
-import { useMantePro, type Machine } from "@/context/MantePro";
+import { useMantePro, getMachineAlertStatus, getMachineUsagePct, type Machine } from "@/context/MantePro";
 import {
-  Plus, Trash2, Factory, Search, LayoutGrid, List, Eye, Wrench, Store, Printer,
+  Plus, Trash2, Factory, Search, LayoutGrid, List, Eye, Wrench, Store, Printer, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { printInventory } from "@/lib/print-machines";
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/maquinas")({
 type SortKey = "name" | "code" | "lastMaint" | "criticality";
 
 function MachinesPage() {
-  const { machines, records, deleteMachine, updateMachine, settings } = useMantePro();
+  const { machines, records, deleteMachine, updateMachine, settings, usageCycles } = useMantePro();
   const [q, setQ] = useState("");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [status, setStatus] = useState<string>("todos");
@@ -75,6 +75,13 @@ function MachinesPage() {
     updateMachine(m.id, { status: "En Taller" });
     toast.success(`${m.code} enviada a taller externo`);
   };
+
+  const childMatches = useChildMatches();
+
+  // Si hay una ruta hija activa (ej: /maquinas/$id), renderizamos sólo el Outlet
+  if (childMatches.length > 0) {
+    return <Outlet />;
+  }
 
   return (
     <AppShell title="Máquinas">
@@ -134,12 +141,29 @@ function MachinesPage() {
           {filtered.map((m) => {
             const lm = lastMaint(m.id);
             const nm = nextMaint(m.id);
+            const cycle = usageCycles.find((c) => c.machineId === m.id);
+            const alertStatus = getMachineAlertStatus(cycle, m.threshold);
+            const usagePct = getMachineUsagePct(cycle, m.threshold);
+            const overBy = cycle && m.threshold ? Math.max(0, cycle.horasAcumuladas - m.threshold.horasCiclo) : 0;
+            const daysSince = lm ? Math.floor((Date.now() - new Date(lm.date).getTime()) / 86400000) : null;
+            const cardBorder =
+              alertStatus === "critical" ? "border-red-500/50 machine-card-critical" :
+              alertStatus === "warning" ? "border-amber-500/40 machine-card-warning" :
+              "border-border machine-card-normal hover:border-primary/40";
             return (
-              <Card key={m.id} className="bg-card border-border hover:border-primary/40 transition-colors">
+              <Card key={m.id} className={`bg-card transition-colors relative overflow-hidden ${cardBorder}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-mono text-xs text-primary">{m.code}</div>
+                      <div className="font-mono text-xs text-primary flex items-center gap-2">
+                        {m.code}
+                        {/* Alert dot */}
+                        <span className={`inline-block h-2 w-2 rounded-full ${
+                          alertStatus === "critical" ? "bg-red-500 animate-pulse-fast" :
+                          alertStatus === "warning" ? "bg-amber-500 animate-pulse-medium" :
+                          "bg-green-500 animate-pulse-slow"
+                        }`} />
+                      </div>
                       <div className="font-semibold truncate">{m.name}</div>
                       <div className="text-xs text-muted-foreground truncate">{m.brand} · {m.model}</div>
                     </div>
@@ -154,6 +178,27 @@ function MachinesPage() {
                     <div><dt className="text-muted-foreground">Último mant.</dt><dd>{lm ? formatDate(lm.date) : "—"}</dd></div>
                     <div><dt className="text-muted-foreground">Próximo</dt><dd className={nm ? "text-primary" : ""}>{nm ? formatDate(nm.date) : "—"}</dd></div>
                   </dl>
+                  {/* Usage progress mini-bar */}
+                  {m.threshold && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                        <span>Ciclo uso</span>
+                        <span className={alertStatus === "critical" ? "text-red-400" : alertStatus === "warning" ? "text-amber-400" : "text-green-400"}>
+                          {cycle?.horasAcumuladas.toFixed(1) ?? 0}h / {m.threshold.horasCiclo}h
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-border overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            alertStatus === "critical" ? "bg-red-500" :
+                            alertStatus === "warning" ? "bg-amber-500" :
+                            "bg-green-500"
+                          }`}
+                          style={{ width: `${Math.min(usagePct, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-3 flex items-center justify-between gap-1 border-t border-border pt-3">
                     <Button asChild size="sm" variant="ghost"><Link to="/maquinas/$id" params={{ id: m.id }}><Eye className="h-4 w-4 mr-1" /> Ver</Link></Button>
                     <Button asChild size="sm" variant="ghost"><Link to="/mantenimientos"><Wrench className="h-4 w-4 mr-1" /> Mant.</Link></Button>
@@ -161,6 +206,15 @@ function MachinesPage() {
                     <DeleteBtn onConfirm={() => { deleteMachine(m.id); toast.success("Eliminada"); }} code={m.code} />
                   </div>
                 </CardContent>
+                {/* Critical warning banner */}
+                {alertStatus === "critical" && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5" style={{ background: "#EF444420" }}>
+                    <AlertTriangle className="h-3 w-3 text-red-400 shrink-0" />
+                    <span className="text-[11px] text-red-400">
+                      Mantenimiento requerido · {overBy.toFixed(1)}h sobre límite{daysSince !== null ? ` · ${daysSince} días sin mant.` : ""}
+                    </span>
+                  </div>
+                )}
               </Card>
             );
           })}
@@ -210,6 +264,7 @@ function MachinesPage() {
       )}
 
       <MachineFormDialog open={open} onOpenChange={setOpen} machine={editing} />
+      <Outlet />
     </AppShell>
   );
 }

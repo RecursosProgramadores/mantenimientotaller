@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
+import { useMemo, useState, useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,12 +36,50 @@ function Page() {
   const { records, machines, types, deleteRecord } = useMantePro();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [prefill, setPrefill] = useState<{
+    machineId?: string; typeId?: string; notes?: string;
+    status?: RecordStatus; urgent?: boolean;
+  } | undefined>();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("todos");
   const [machine, setMachine] = useState("todas");
   const [type, setType] = useState("todos");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+
+  const childMatches = useChildMatches();
+
+  // Read URL search params on mount — e.g. from "Crear OTM urgente" button
+  // App uses HashRouter: URL is /#/mantenimientos?machineId=x&typeId=y&urgent=1
+  useEffect(() => {
+    const hash = window.location.hash; // e.g. "#/mantenimientos?machineId=m3&..."
+    const qIdx = hash.indexOf("?");
+    if (qIdx === -1) return;
+    const params = new URLSearchParams(hash.slice(qIdx + 1));
+    const machineId = params.get("machineId");
+    const typeId = params.get("typeId");
+    const urgent = params.get("urgent") === "1";
+    const notesParam = params.get("notes");
+    if (machineId || typeId) {
+      const mach = machines.find((m) => m.id === machineId);
+      const mType = types.find((t) => t.id === typeId);
+      const autoNotes = urgent
+        ? `⚠ OTM urgente generada desde alerta de mantenimiento.
+Máquina: ${mach?.name ?? machineId} (${mach?.code ?? "—"})
+Tipo: ${mType?.name ?? typeId}
+Acción requerida: Mantenimiento correctivo inmediato. Ciclo de uso superado.`
+        : notesParam ?? "";
+      setPrefill({ machineId: machineId ?? undefined, typeId: typeId ?? undefined, notes: autoNotes, status: "En Proceso", urgent });
+      setEditingId(null);
+      setOpen(true);
+      // Clean params from hash URL without reloading
+      const cleanHash = hash.slice(0, qIdx);
+      window.history.replaceState({}, "", window.location.pathname + cleanHash);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (childMatches.length > 0) return <Outlet />;
 
   const editing = editingId ? records.find((r) => r.id === editingId) ?? null : null;
 
@@ -112,7 +150,7 @@ function Page() {
         <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[150px] bg-card" />
 
         <Button variant="ghost" onClick={exportCSV} className="ml-auto"><Download className="h-4 w-4 mr-1" /> Exportar CSV</Button>
-        <Button onClick={() => { setEditingId(null); setOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Nueva OTM</Button>
+        <Button onClick={() => { setPrefill(undefined); setEditingId(null); setOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Nueva OTM</Button>
       </div>
 
       {filtered.length === 0 ? (
@@ -158,7 +196,7 @@ function Page() {
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-1">
                           <Button asChild size="sm" variant="ghost"><Link to="/mantenimientos/$id" params={{ id: r.id }}><Eye className="h-4 w-4" /></Link></Button>
-                          <Button size="sm" variant="ghost" onClick={() => { setEditingId(r.id); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => { setPrefill(undefined); setEditingId(r.id); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild><Button size="sm" variant="ghost" className="text-critical"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                             <AlertDialogContent className="bg-card border-border">
@@ -177,7 +215,7 @@ function Page() {
         </Card>
       )}
 
-      <MaintenanceFormDialog open={open} onOpenChange={setOpen} recordId={editingId} />
+      <MaintenanceFormDialog open={open} onOpenChange={setOpen} recordId={editingId} prefill={prefill} />
     </AppShell>
   );
 }

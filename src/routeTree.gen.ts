@@ -9,9 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsoMaquinasRouteImport } from './routes/uso-maquinas'
 import { Route as TiposMantenimientoRouteImport } from './routes/tipos-mantenimiento'
 import { Route as TalleresExternosRouteImport } from './routes/talleres-externos'
 import { Route as ReportesRouteImport } from './routes/reportes'
+import { Route as NotificacionesRouteImport } from './routes/notificaciones'
 import { Route as MaquinasRouteImport } from './routes/maquinas'
 import { Route as MantenimientosRouteImport } from './routes/mantenimientos'
 import { Route as FichasTecnicasRouteImport } from './routes/fichas-tecnicas'
@@ -21,6 +23,11 @@ import { Route as TalleresExternosIdRouteImport } from './routes/talleres-extern
 import { Route as MaquinasIdRouteImport } from './routes/maquinas.$id'
 import { Route as MantenimientosIdRouteImport } from './routes/mantenimientos.$id'
 
+const UsoMaquinasRoute = UsoMaquinasRouteImport.update({
+  id: '/uso-maquinas',
+  path: '/uso-maquinas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TiposMantenimientoRoute = TiposMantenimientoRouteImport.update({
   id: '/tipos-mantenimiento',
   path: '/tipos-mantenimiento',
@@ -34,6 +41,11 @@ const TalleresExternosRoute = TalleresExternosRouteImport.update({
 const ReportesRoute = ReportesRouteImport.update({
   id: '/reportes',
   path: '/reportes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificacionesRoute = NotificacionesRouteImport.update({
+  id: '/notificaciones',
+  path: '/notificaciones',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MaquinasRoute = MaquinasRouteImport.update({
@@ -83,9 +95,11 @@ export interface FileRoutesByFullPath {
   '/fichas-tecnicas': typeof FichasTecnicasRoute
   '/mantenimientos': typeof MantenimientosRouteWithChildren
   '/maquinas': typeof MaquinasRouteWithChildren
+  '/notificaciones': typeof NotificacionesRoute
   '/reportes': typeof ReportesRoute
   '/talleres-externos': typeof TalleresExternosRouteWithChildren
   '/tipos-mantenimiento': typeof TiposMantenimientoRoute
+  '/uso-maquinas': typeof UsoMaquinasRoute
   '/mantenimientos/$id': typeof MantenimientosIdRoute
   '/maquinas/$id': typeof MaquinasIdRoute
   '/talleres-externos/$id': typeof TalleresExternosIdRoute
@@ -96,9 +110,11 @@ export interface FileRoutesByTo {
   '/fichas-tecnicas': typeof FichasTecnicasRoute
   '/mantenimientos': typeof MantenimientosRouteWithChildren
   '/maquinas': typeof MaquinasRouteWithChildren
+  '/notificaciones': typeof NotificacionesRoute
   '/reportes': typeof ReportesRoute
   '/talleres-externos': typeof TalleresExternosRouteWithChildren
   '/tipos-mantenimiento': typeof TiposMantenimientoRoute
+  '/uso-maquinas': typeof UsoMaquinasRoute
   '/mantenimientos/$id': typeof MantenimientosIdRoute
   '/maquinas/$id': typeof MaquinasIdRoute
   '/talleres-externos/$id': typeof TalleresExternosIdRoute
@@ -110,9 +126,11 @@ export interface FileRoutesById {
   '/fichas-tecnicas': typeof FichasTecnicasRoute
   '/mantenimientos': typeof MantenimientosRouteWithChildren
   '/maquinas': typeof MaquinasRouteWithChildren
+  '/notificaciones': typeof NotificacionesRoute
   '/reportes': typeof ReportesRoute
   '/talleres-externos': typeof TalleresExternosRouteWithChildren
   '/tipos-mantenimiento': typeof TiposMantenimientoRoute
+  '/uso-maquinas': typeof UsoMaquinasRoute
   '/mantenimientos/$id': typeof MantenimientosIdRoute
   '/maquinas/$id': typeof MaquinasIdRoute
   '/talleres-externos/$id': typeof TalleresExternosIdRoute
@@ -125,9 +143,11 @@ export interface FileRouteTypes {
     | '/fichas-tecnicas'
     | '/mantenimientos'
     | '/maquinas'
+    | '/notificaciones'
     | '/reportes'
     | '/talleres-externos'
     | '/tipos-mantenimiento'
+    | '/uso-maquinas'
     | '/mantenimientos/$id'
     | '/maquinas/$id'
     | '/talleres-externos/$id'
@@ -138,9 +158,11 @@ export interface FileRouteTypes {
     | '/fichas-tecnicas'
     | '/mantenimientos'
     | '/maquinas'
+    | '/notificaciones'
     | '/reportes'
     | '/talleres-externos'
     | '/tipos-mantenimiento'
+    | '/uso-maquinas'
     | '/mantenimientos/$id'
     | '/maquinas/$id'
     | '/talleres-externos/$id'
@@ -151,9 +173,11 @@ export interface FileRouteTypes {
     | '/fichas-tecnicas'
     | '/mantenimientos'
     | '/maquinas'
+    | '/notificaciones'
     | '/reportes'
     | '/talleres-externos'
     | '/tipos-mantenimiento'
+    | '/uso-maquinas'
     | '/mantenimientos/$id'
     | '/maquinas/$id'
     | '/talleres-externos/$id'
@@ -165,13 +189,22 @@ export interface RootRouteChildren {
   FichasTecnicasRoute: typeof FichasTecnicasRoute
   MantenimientosRoute: typeof MantenimientosRouteWithChildren
   MaquinasRoute: typeof MaquinasRouteWithChildren
+  NotificacionesRoute: typeof NotificacionesRoute
   ReportesRoute: typeof ReportesRoute
   TalleresExternosRoute: typeof TalleresExternosRouteWithChildren
   TiposMantenimientoRoute: typeof TiposMantenimientoRoute
+  UsoMaquinasRoute: typeof UsoMaquinasRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/uso-maquinas': {
+      id: '/uso-maquinas'
+      path: '/uso-maquinas'
+      fullPath: '/uso-maquinas'
+      preLoaderRoute: typeof UsoMaquinasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tipos-mantenimiento': {
       id: '/tipos-mantenimiento'
       path: '/tipos-mantenimiento'
@@ -191,6 +224,13 @@ declare module '@tanstack/react-router' {
       path: '/reportes'
       fullPath: '/reportes'
       preLoaderRoute: typeof ReportesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notificaciones': {
+      id: '/notificaciones'
+      path: '/notificaciones'
+      fullPath: '/notificaciones'
+      preLoaderRoute: typeof NotificacionesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/maquinas': {
@@ -293,9 +333,11 @@ const rootRouteChildren: RootRouteChildren = {
   FichasTecnicasRoute: FichasTecnicasRoute,
   MantenimientosRoute: MantenimientosRouteWithChildren,
   MaquinasRoute: MaquinasRouteWithChildren,
+  NotificacionesRoute: NotificacionesRoute,
   ReportesRoute: ReportesRoute,
   TalleresExternosRoute: TalleresExternosRouteWithChildren,
   TiposMantenimientoRoute: TiposMantenimientoRoute,
+  UsoMaquinasRoute: UsoMaquinasRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -4,7 +4,51 @@ export type MachineStatus = "Operativo" | "En Revisión" | "En Taller" | "Fuera 
 export type Criticality = "Alto" | "Medio" | "Bajo";
 export type Frequency = "Diario" | "Semanal" | "Mensual" | "Semestral" | "Anual" | "A condición";
 export type RecordStatus = "Programado" | "En Proceso" | "Completado" | "Cancelado";
+export type AlertStatus = "normal" | "warning" | "critical";
 
+// ─── Usage & Threshold Types ──────────────────────────────────────────────────
+export interface MachineThreshold {
+  horasCiclo: number;           // hours of use per cycle before maintenance
+  diasMaximos: number;          // max days between maintenances
+  tiposIds: string[];           // maintenance type IDs that apply
+  alertaPct: number;            // early-warning threshold % (10–90, default 80)
+  turno: "Mañana" | "Tarde" | "Noche" | "Tiempo completo" | "Variable";
+  diasOperacion: number[];      // 0=Mon … 6=Sun
+  operadoresIds: string[];      // assigned operator / technician IDs
+}
+
+export interface UsageLog {
+  id: string;
+  machineId: string;
+  startAt: string;              // ISO datetime string
+  endAt: string;                // ISO datetime string
+  hours: number;
+  operador: string;
+  turno: string;
+  observaciones?: string;
+  registradoPor: string;
+}
+
+export interface UsageCycle {
+  machineId: string;
+  horasAcumuladas: number;
+  iniciadoEn: string;           // ISO datetime
+  ultimoReset: string;          // ISO datetime of last cycle reset
+  otmRef?: string;              // OTM that triggered last reset
+}
+
+export interface AppNotification {
+  id: string;
+  type: "warning" | "critical" | "reminder" | "reset";
+  machineId: string;
+  title: string;
+  message: string;
+  createdAt: string;            // ISO datetime
+  read: boolean;
+  actionType?: "schedule-otm" | "create-urgent-otm" | "view-history";
+}
+
+// ─── Existing Types ────────────────────────────────────────────────────────────
 export interface CriticalComponent {
   id: string;
   name: string;
@@ -43,6 +87,7 @@ export interface Machine {
   sheetUpdatedAt?: string;
   location: string;
   acquiredAt: string;
+  threshold?: MachineThreshold;   // ← NEW: usage threshold configuration
 }
 
 export interface TypeActivity {
@@ -56,13 +101,12 @@ export interface MaintenanceType {
   id: string;
   name: string;
   description: string;
-  color: string;             // tailwind token color name (success, info, primary, etc.)
+  color: string;
   frequency: Frequency;
   frequencyDays: number;
   estimatedHours: number;
   activities: TypeActivity[];
   active: boolean;
-  // legacy
   category: "Preventivo" | "Correctivo" | "Predictivo";
 }
 
@@ -82,21 +126,21 @@ export interface RecordPart {
 
 export interface MaintenanceRecord {
   id: string;
-  otm: string;                       // OTM-YYYY-NNN
+  otm: string;
   machineId: string;
   typeId: string;
-  date: string;                      // YYYY-MM-DD
-  startTime?: string;                // HH:MM
+  date: string;
+  startTime?: string;
   endTime?: string;
   technician: string;
   supervisor?: string;
   area?: string;
   status: RecordStatus;
-  notes: string;                     // legacy
+  notes: string;
   activities: RecordActivity[];
   parts: RecordPart[];
   laborCost: number;
-  cost: number;                      // total general
+  cost: number;
   postState?: string;
   nextDate?: string;
   nextTypeId?: string;
@@ -172,35 +216,51 @@ export interface AppSettings {
   availabilityGoalPct: number;
 }
 
+// ─── State Interface ──────────────────────────────────────────────────────────
 interface State {
-  machines: Machine[]; types: MaintenanceType[]; records: MaintenanceRecord[];
-  workshops: Workshop[]; sheets: TechSheet[];
+  machines: Machine[];
+  types: MaintenanceType[];
+  records: MaintenanceRecord[];
+  workshops: Workshop[];
+  sheets: TechSheet[];
   workshopRecords: WorkshopRecord[];
   spareParts: SparePart[];
   technicians: Technician[];
   settings: AppSettings;
+  // ── Usage Tracking ──
+  usageLogs: UsageLog[];
+  usageCycles: UsageCycle[];
+  notifications: AppNotification[];
+  // ── Machine CRUD ──
   addMachine: (m: Omit<Machine, "id">) => void;
   updateMachine: (id: string, m: Partial<Machine>) => void;
   deleteMachine: (id: string) => void;
+  // ── Record CRUD ──
   addRecord: (r: Omit<MaintenanceRecord, "id">) => string;
   updateRecord: (id: string, r: Partial<MaintenanceRecord>) => void;
   deleteRecord: (id: string) => void;
+  // ── Type CRUD ──
   addType: (t: Omit<MaintenanceType, "id">) => void;
   updateType: (id: string, t: Partial<MaintenanceType>) => void;
   deleteType: (id: string) => void;
+  // ── Workshop CRUD ──
   addWorkshop: (w: Omit<Workshop, "id">) => void;
   updateWorkshop: (id: string, w: Partial<Workshop>) => void;
   deleteWorkshop: (id: string) => void;
+  // ── Component CRUD ──
   upsertComponent: (machineId: string, c: CriticalComponent) => void;
   deleteComponent: (machineId: string, componentId: string) => void;
+  // ── Machine Documents ──
   addMachineDocuments: (machineId: string, docs: AppDocument[]) => void;
   removeMachineDocument: (machineId: string, docId: string) => void;
+  // ── Workshop Records ──
   addWorkshopRecord: (r: Omit<WorkshopRecord, "id">) => string;
   updateWorkshopRecord: (id: string, r: Partial<WorkshopRecord>) => void;
   deleteWorkshopRecord: (id: string) => void;
   addWorkshopLog: (id: string, note: string, status?: WorkshopRecordStatus) => void;
   addDocumentsToWorkshop: (id: string, docs: AppDocument[]) => void;
   removeDocumentFromWorkshop: (id: string, docId: string) => void;
+  // ── Spare Parts & Technicians ──
   addSparePart: (p: Omit<SparePart, "id">) => void;
   updateSparePart: (id: string, p: Partial<SparePart>) => void;
   deleteSparePart: (id: string) => void;
@@ -209,15 +269,21 @@ interface State {
   deleteTechnician: (id: string) => void;
   updateSettings: (s: Partial<AppSettings>) => void;
   allDocuments: () => AppDocument[];
+  // ── Usage Tracking ──
+  addUsageLog: (log: Omit<UsageLog, "id">) => void;
+  resetCycle: (machineId: string, otmRef?: string) => void;
+  // ── Notifications ──
+  markNotificationRead: (id: string) => void;
+  markAllRead: () => void;
+  deleteNotification: (id: string) => void;
 }
 
 const Ctx = createContext<State | null>(null);
-// Runtime uid for new items (only used after user interaction, never during SSR initial render).
 const uid = () => Math.random().toString(36).slice(2, 10);
-// Deterministic uid for initial seed data — keeps SSR and CSR markup identical.
 let _seedCounter = 0;
 const sid = (prefix = "s") => `${prefix}-${++_seedCounter}`;
 
+// ─── Seed Data ────────────────────────────────────────────────────────────────
 const initialMachines: Machine[] = [
   {
     id: "m1", code: "FRS-001", name: "Fresadora/Taladro-Fresadora", brand: "Sieg", model: "ZX7032",
@@ -237,6 +303,11 @@ const initialMachines: Machine[] = [
     ],
     sheetUpdatedAt: "2025-06-15",
     location: "Taller de Mecanizado", acquiredAt: "2015-06-15",
+    threshold: {
+      horasCiclo: 30, diasMaximos: 7, tiposIds: ["t-semanal", "t-mensual"],
+      alertaPct: 80, turno: "Tiempo completo", diasOperacion: [0, 1, 2, 3],
+      operadoresIds: ["u2", "u3"],
+    },
   },
   {
     id: "m2", code: "TRN-002", name: "Torno CNC TC-450", brand: "Haas", model: "TC-450",
@@ -247,6 +318,11 @@ const initialMachines: Machine[] = [
     status: "En Revisión", criticality: "Alto",
     hoursOfUse: 9120, components: [],
     location: "Nave A - Línea 2", acquiredAt: "2019-07-22",
+    threshold: {
+      horasCiclo: 40, diasMaximos: 10, tiposIds: ["t-mensual"],
+      alertaPct: 80, turno: "Mañana", diasOperacion: [0, 1, 2, 3, 4, 5],
+      operadoresIds: ["u4"],
+    },
   },
   {
     id: "m3", code: "PRS-003", name: "Prensa Hidráulica P-200", brand: "Enerpac", model: "P-200",
@@ -257,6 +333,11 @@ const initialMachines: Machine[] = [
     status: "En Taller", criticality: "Medio",
     hoursOfUse: 12450, components: [],
     location: "Nave B - Estampado", acquiredAt: "2018-01-10",
+    threshold: {
+      horasCiclo: 20, diasMaximos: 5, tiposIds: ["t-semanal"],
+      alertaPct: 80, turno: "Tarde", diasOperacion: [0, 1, 2, 3, 4],
+      operadoresIds: ["u6"],
+    },
   },
   {
     id: "m4", code: "SLD-004", name: "Soldadora MIG-350", brand: "Lincoln", model: "MIG-350",
@@ -267,6 +348,11 @@ const initialMachines: Machine[] = [
     status: "Operativo", criticality: "Bajo",
     hoursOfUse: 2100, components: [],
     location: "Nave B - Soldadura", acquiredAt: "2022-09-05",
+    threshold: {
+      horasCiclo: 50, diasMaximos: 14, tiposIds: ["t-semanal", "t-mensual"],
+      alertaPct: 75, turno: "Mañana", diasOperacion: [0, 1, 2, 3, 4],
+      operadoresIds: ["u6"],
+    },
   },
   {
     id: "m5", code: "CMP-005", name: "Compresor Industrial CI-75", brand: "Atlas Copco", model: "CI-75",
@@ -277,6 +363,11 @@ const initialMachines: Machine[] = [
     status: "Fuera de Servicio", criticality: "Alto",
     hoursOfUse: 18900, components: [],
     location: "Sala de Máquinas", acquiredAt: "2017-04-18",
+    threshold: {
+      horasCiclo: 25, diasMaximos: 7, tiposIds: ["t-diario", "t-semanal"],
+      alertaPct: 80, turno: "Tiempo completo", diasOperacion: [0, 1, 2, 3, 4, 5, 6],
+      operadoresIds: ["u2"],
+    },
   },
   {
     id: "m6", code: "RCT-006", name: "Rectificadora R-800", brand: "Okuma", model: "R-800",
@@ -287,6 +378,11 @@ const initialMachines: Machine[] = [
     status: "Operativo", criticality: "Medio",
     hoursOfUse: 5630, components: [],
     location: "Nave A - Acabados", acquiredAt: "2020-11-30",
+    threshold: {
+      horasCiclo: 60, diasMaximos: 30, tiposIds: ["t-mensual", "t-semestral"],
+      alertaPct: 80, turno: "Mañana", diasOperacion: [0, 1, 2, 3, 4],
+      operadoresIds: ["u3"],
+    },
   },
 ];
 
@@ -365,7 +461,6 @@ const initialTypes: MaintenanceType[] = [
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const dPlus = (d: number) => new Date(Date.UTC(2025, 5, 15) + d * 86400000).toISOString().slice(0, 10);
 
-// Historical OTMs for FRS-001 (2020-2024)
 const frsHistory: MaintenanceRecord[] = [
   {
     id: sid(), otm: "OTM-2020-001", machineId: "m1", typeId: "t-correctivo",
@@ -551,6 +646,115 @@ const initialSettings: AppSettings = {
   availabilityGoalPct: 95,
 };
 
+// ─── Usage Mock Data ──────────────────────────────────────────────────────────
+// Cycles — hours already accumulated in the current maintenance cycle
+// FRS-001: 26/30h = 87% → WARNING
+// TRN-002: 15/40h = 37.5% → normal
+// PRS-003: 21/20h = 105% → CRITICAL
+// SLD-004: 30/50h = 60% → normal
+// CMP-005: 22/25h = 88% → WARNING
+// RCT-006: 10/60h = 17% → normal
+const initialUsageCycles: UsageCycle[] = [
+  { machineId: "m1", horasAcumuladas: 26, iniciadoEn: "2026-06-27T08:00:00Z", ultimoReset: "2026-06-27T08:00:00Z" },
+  { machineId: "m2", horasAcumuladas: 15, iniciadoEn: "2026-06-25T09:00:00Z", ultimoReset: "2026-06-25T09:00:00Z" },
+  { machineId: "m3", horasAcumuladas: 21, iniciadoEn: "2026-06-30T08:00:00Z", ultimoReset: "2026-06-30T08:00:00Z" },
+  { machineId: "m4", horasAcumuladas: 30, iniciadoEn: "2026-06-21T08:00:00Z", ultimoReset: "2026-06-21T08:00:00Z" },
+  { machineId: "m5", horasAcumuladas: 22, iniciadoEn: "2026-06-28T00:00:00Z", ultimoReset: "2026-06-28T00:00:00Z" },
+  { machineId: "m6", horasAcumuladas: 10, iniciadoEn: "2026-06-05T09:00:00Z", ultimoReset: "2026-06-05T09:00:00Z" },
+];
+
+const initialUsageLogs: UsageLog[] = [
+  // FRS-001 — 26h total
+  { id: "ul1", machineId: "m1", startAt: "2026-06-27T08:00", endAt: "2026-06-27T14:00", hours: 6, operador: "Carlos Ruiz", turno: "Mañana", observaciones: "Mecanizado de piezas serie A.", registradoPor: "Carlos Ruiz" },
+  { id: "ul2", machineId: "m1", startAt: "2026-06-28T08:00", endAt: "2026-06-28T14:00", hours: 6, operador: "Carlos Ruiz", turno: "Mañana", registradoPor: "Carlos Ruiz" },
+  { id: "ul3", machineId: "m1", startAt: "2026-06-30T08:00", endAt: "2026-06-30T14:00", hours: 6, operador: "Juan Pérez", turno: "Mañana", registradoPor: "Juan Pérez" },
+  { id: "ul4", machineId: "m1", startAt: "2026-07-01T08:00", endAt: "2026-07-01T12:00", hours: 4, operador: "Juan Pérez", turno: "Mañana", registradoPor: "Juan Pérez" },
+  { id: "ul5", machineId: "m1", startAt: "2026-07-03T08:00", endAt: "2026-07-03T12:00", hours: 4, operador: "Carlos Ruiz", turno: "Mañana", registradoPor: "J. Mendoza" },
+  // TRN-002 — 15h total
+  { id: "ul6", machineId: "m2", startAt: "2026-06-25T09:00", endAt: "2026-06-25T17:00", hours: 8, operador: "María López", turno: "Mañana", registradoPor: "María López" },
+  { id: "ul7", machineId: "m2", startAt: "2026-06-26T09:00", endAt: "2026-06-26T16:00", hours: 7, operador: "María López", turno: "Mañana", registradoPor: "María López" },
+  // PRS-003 — 21h total (CRITICAL: > 20h threshold)
+  { id: "ul8", machineId: "m3", startAt: "2026-06-30T08:00", endAt: "2026-06-30T16:00", hours: 8, operador: "Ana Torres", turno: "Mañana", registradoPor: "Ana Torres" },
+  { id: "ul9", machineId: "m3", startAt: "2026-07-01T08:00", endAt: "2026-07-01T16:00", hours: 8, operador: "Ana Torres", turno: "Mañana", observaciones: "Producción de lotes B y C.", registradoPor: "Ana Torres" },
+  { id: "ul10", machineId: "m3", startAt: "2026-07-02T08:00", endAt: "2026-07-02T13:00", hours: 5, operador: "Ana Torres", turno: "Mañana", registradoPor: "J. Mendoza" },
+  // SLD-004 — 30h total
+  { id: "ul11", machineId: "m4", startAt: "2026-06-21T08:00", endAt: "2026-06-21T14:00", hours: 6, operador: "Ana Torres", turno: "Mañana", registradoPor: "Ana Torres" },
+  { id: "ul12", machineId: "m4", startAt: "2026-06-23T08:00", endAt: "2026-06-23T16:00", hours: 8, operador: "Ana Torres", turno: "Mañana", registradoPor: "Ana Torres" },
+  { id: "ul13", machineId: "m4", startAt: "2026-06-25T08:00", endAt: "2026-06-25T14:00", hours: 6, operador: "Ana Torres", turno: "Mañana", registradoPor: "Ana Torres" },
+  { id: "ul14", machineId: "m4", startAt: "2026-06-27T08:00", endAt: "2026-06-27T18:00", hours: 10, operador: "Ana Torres", turno: "Mañana", observaciones: "Soldadura de estructura principal.", registradoPor: "Ana Torres" },
+  // CMP-005 — 22h total (WARNING: > 25*0.8=20h)
+  { id: "ul15", machineId: "m5", startAt: "2026-06-28T00:00", endAt: "2026-06-28T10:00", hours: 10, operador: "Carlos Ruiz", turno: "Noche", registradoPor: "Carlos Ruiz" },
+  { id: "ul16", machineId: "m5", startAt: "2026-07-01T00:00", endAt: "2026-07-01T12:00", hours: 12, operador: "Carlos Ruiz", turno: "Noche", registradoPor: "Carlos Ruiz" },
+  // RCT-006 — 10h total
+  { id: "ul17", machineId: "m6", startAt: "2026-06-05T09:00", endAt: "2026-06-05T14:00", hours: 5, operador: "Juan Pérez", turno: "Mañana", registradoPor: "Juan Pérez" },
+  { id: "ul18", machineId: "m6", startAt: "2026-06-12T09:00", endAt: "2026-06-12T14:00", hours: 5, operador: "Juan Pérez", turno: "Mañana", registradoPor: "Juan Pérez" },
+];
+
+// Pre-seeded notifications — visible on first render
+const initialNotifications: AppNotification[] = [
+  {
+    id: "n-critical-m3",
+    type: "critical",
+    machineId: "m3",
+    title: "⚠ MANTENIMIENTO REQUERIDO — PRS-003",
+    message: "La Prensa Hidráulica P-200 ha superado su límite de operación (21h / 20h). Requiere mantenimiento inmediato. Última OTM: hace 9 días.",
+    createdAt: "2026-07-04T11:00:00Z",
+    read: false,
+    actionType: "create-urgent-otm",
+  },
+  {
+    id: "n-warning-m1",
+    type: "warning",
+    machineId: "m1",
+    title: "Mantenimiento próximo — FRS-001",
+    message: "La Fresadora/Taladro-Fresadora ha alcanzado el 87% de su ciclo de uso. Horas actuales: 26h de 30h. Programar mantenimiento preventivo.",
+    createdAt: "2026-07-04T09:00:00Z",
+    read: false,
+    actionType: "schedule-otm",
+  },
+  {
+    id: "n-warning-m5",
+    type: "warning",
+    machineId: "m5",
+    title: "Mantenimiento próximo — CMP-005",
+    message: "El Compresor Industrial CI-75 ha alcanzado el 88% de su ciclo de uso. Horas actuales: 22h de 25h. Programar mantenimiento preventivo.",
+    createdAt: "2026-07-04T07:00:00Z",
+    read: false,
+    actionType: "schedule-otm",
+  },
+  {
+    id: "n-reminder-m3-days",
+    type: "reminder",
+    machineId: "m3",
+    title: "Recordatorio de mantenimiento — PRS-003",
+    message: "Han pasado más de 4 días desde el último mantenimiento de la Prensa Hidráulica P-200. Límite configurado: 5 días.",
+    createdAt: "2026-07-04T06:00:00Z",
+    read: true,
+    actionType: "view-history",
+  },
+];
+
+// ─── Alert Status Helpers ──────────────────────────────────────────────────────
+export function getMachineAlertStatus(
+  cycle: UsageCycle | undefined,
+  threshold: MachineThreshold | undefined,
+): AlertStatus {
+  if (!cycle || !threshold || threshold.horasCiclo <= 0) return "normal";
+  const pct = (cycle.horasAcumuladas / threshold.horasCiclo) * 100;
+  if (pct >= 100) return "critical";
+  if (pct >= threshold.alertaPct) return "warning";
+  return "normal";
+}
+
+export function getMachineUsagePct(
+  cycle: UsageCycle | undefined,
+  threshold: MachineThreshold | undefined,
+): number {
+  if (!cycle || !threshold || threshold.horasCiclo <= 0) return 0;
+  return Math.round((cycle.horasAcumuladas / threshold.horasCiclo) * 100);
+}
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
 export function MantePoProvider({ children }: { children: ReactNode }) {
   const [machines, setMachines] = useState(initialMachines);
   const [types, setTypes] = useState(initialTypes);
@@ -561,22 +765,66 @@ export function MantePoProvider({ children }: { children: ReactNode }) {
   const [spareParts, setSpareParts] = useState(initialSpareParts);
   const [technicians, setTechnicians] = useState(initialTechnicians);
   const [settings, setSettings] = useState(initialSettings);
+  const [usageLogs, setUsageLogs] = useState<UsageLog[]>(initialUsageLogs);
+  const [usageCycles, setUsageCycles] = useState<UsageCycle[]>(initialUsageCycles);
+  const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
 
   const value: State = {
     machines, types, records, workshops, sheets,
     workshopRecords, spareParts, technicians, settings,
-    addMachine: (m) => setMachines((x) => [...x, { ...m, id: sid() }]),
+    usageLogs, usageCycles, notifications,
+
+    // ── Machine CRUD ──
+    addMachine: (m) => setMachines((x) => [...x, { ...m, id: uid() }]),
     updateMachine: (id, patch) => setMachines((x) => x.map((m) => (m.id === id ? { ...m, ...patch } : m))),
     deleteMachine: (id) => setMachines((x) => x.filter((m) => m.id !== id)),
+
+    // ── Record CRUD (intercept Completado → cycle reset) ──
     addRecord: (r) => { const id = uid(); setRecords((x) => [{ ...r, id }, ...x]); return id; },
-    updateRecord: (id, patch) => setRecords((x) => x.map((r) => (r.id === id ? { ...r, ...patch } : r))),
+    updateRecord: (id, patch) => {
+      setRecords((x) => x.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+      // Auto-reset cycle when OTM is completed
+      if (patch.status === "Completado") {
+        const record = records.find((r) => r.id === id);
+        if (record) {
+          const machine = machines.find((m) => m.id === record.machineId);
+          const now = new Date().toISOString();
+          setUsageCycles((cycles) =>
+            cycles.map((c) =>
+              c.machineId === record.machineId
+                ? { ...c, horasAcumuladas: 0, ultimoReset: now, otmRef: record.otm }
+                : c,
+            ),
+          );
+          if (machine) {
+            setNotifications((n) => [
+              {
+                id: uid(),
+                type: "reset",
+                machineId: record.machineId,
+                title: `Ciclo reiniciado — ${machine.code}`,
+                message: `Mantenimiento completado. El contador de uso de ${machine.name} fue reiniciado. Nuevo ciclo iniciado.`,
+                createdAt: now,
+                read: false,
+              },
+              ...n,
+            ]);
+          }
+        }
+      }
+    },
     deleteRecord: (id) => setRecords((x) => x.filter((r) => r.id !== id)),
-    addType: (t) => setTypes((x) => [...x, { ...t, id: sid() }]),
+
+    // ── Type CRUD ──
+    addType: (t) => setTypes((x) => [...x, { ...t, id: uid() }]),
     updateType: (id, patch) => setTypes((x) => x.map((t) => (t.id === id ? { ...t, ...patch } : t))),
     deleteType: (id) => setTypes((x) => x.filter((t) => t.id !== id)),
-    addWorkshop: (w) => setWorkshops((x) => [...x, { ...w, id: sid() }]),
+
+    // ── Workshop CRUD ──
+    addWorkshop: (w) => setWorkshops((x) => [...x, { ...w, id: uid() }]),
     updateWorkshop: (id, patch) => setWorkshops((x) => x.map((w) => (w.id === id ? { ...w, ...patch } : w))),
     deleteWorkshop: (id) => setWorkshops((x) => x.filter((w) => w.id !== id)),
+
     upsertComponent: (machineId, c) => setMachines((x) => x.map((m) => {
       if (m.id !== machineId) return m;
       const exists = m.components.some((k) => k.id === c.id);
@@ -614,7 +862,7 @@ export function MantePoProvider({ children }: { children: ReactNode }) {
     })),
     deleteWorkshopRecord: (id) => setWorkshopRecords((x) => x.filter((r) => r.id !== id)),
     addWorkshopLog: (id, note, status) => setWorkshopRecords((x) => x.map((r) =>
-      r.id === id ? { ...r, status: status ?? r.status, logs: [...r.logs, { id: sid(), at: new Date().toISOString(), note, status }] } : r,
+      r.id === id ? { ...r, status: status ?? r.status, logs: [...r.logs, { id: uid(), at: new Date().toISOString(), note, status }] } : r,
     )),
     addDocumentsToWorkshop: (id, docs) => setWorkshopRecords((x) => x.map((r) =>
       r.id === id ? { ...r, documents: [...r.documents, ...docs] } : r,
@@ -622,14 +870,112 @@ export function MantePoProvider({ children }: { children: ReactNode }) {
     removeDocumentFromWorkshop: (id, docId) => setWorkshopRecords((x) => x.map((r) =>
       r.id === id ? { ...r, documents: r.documents.filter((d) => d.id !== docId) } : r,
     )),
-    addSparePart: (p) => setSpareParts((x) => [...x, { ...p, id: sid() }]),
+
+    addSparePart: (p) => setSpareParts((x) => [...x, { ...p, id: uid() }]),
     updateSparePart: (id, patch) => setSpareParts((x) => x.map((p) => (p.id === id ? { ...p, ...patch } : p))),
     deleteSparePart: (id) => setSpareParts((x) => x.filter((p) => p.id !== id)),
-    addTechnician: (t) => setTechnicians((x) => [...x, { ...t, id: sid() }]),
+    addTechnician: (t) => setTechnicians((x) => [...x, { ...t, id: uid() }]),
     updateTechnician: (id, patch) => setTechnicians((x) => x.map((t) => (t.id === id ? { ...t, ...patch } : t))),
     deleteTechnician: (id) => setTechnicians((x) => x.filter((t) => t.id !== id)),
     updateSettings: (s) => setSettings((x) => ({ ...x, ...s })),
     allDocuments: () => workshopRecords.flatMap((r) => r.documents.map((d) => ({ ...d, workshopRecordId: r.id, machineId: r.machineId }))),
+
+    // ── Usage Tracking ──
+    addUsageLog: (log) => {
+      const newLog: UsageLog = { ...log, id: uid() };
+      setUsageLogs((x) => [newLog, ...x]);
+
+      // Find machine and threshold from current closure
+      const machine = machines.find((m) => m.id === log.machineId);
+      const threshold = machine?.threshold;
+      const currentCycle = usageCycles.find((c) => c.machineId === log.machineId);
+
+      if (threshold) {
+        const prevHours = currentCycle?.horasAcumuladas ?? 0;
+        const newHours = prevHours + log.hours;
+        const prevPct = threshold.horasCiclo > 0 ? (prevHours / threshold.horasCiclo) * 100 : 0;
+        const newPct = threshold.horasCiclo > 0 ? (newHours / threshold.horasCiclo) * 100 : 0;
+
+        if (currentCycle) {
+          setUsageCycles((cycles) =>
+            cycles.map((c) =>
+              c.machineId === log.machineId ? { ...c, horasAcumuladas: newHours } : c,
+            ),
+          );
+        } else {
+          setUsageCycles((cycles) => [
+            ...cycles,
+            { machineId: log.machineId, horasAcumuladas: newHours, iniciadoEn: log.startAt, ultimoReset: log.startAt },
+          ]);
+        }
+
+        // Fire notifications on threshold crossing
+        const now = new Date().toISOString();
+        if (machine && newPct >= 100 && prevPct < 100) {
+          setNotifications((n) => [
+            {
+              id: uid(),
+              type: "critical",
+              machineId: log.machineId,
+              title: `⚠ MANTENIMIENTO REQUERIDO — ${machine.code}`,
+              message: `La ${machine.name} ha superado su límite de operación (${newHours.toFixed(1)}h / ${threshold.horasCiclo}h). Requiere mantenimiento inmediato.`,
+              createdAt: now,
+              read: false,
+              actionType: "create-urgent-otm",
+            },
+            ...n,
+          ]);
+        } else if (machine && newPct >= threshold.alertaPct && prevPct < threshold.alertaPct) {
+          setNotifications((n) => [
+            {
+              id: uid(),
+              type: "warning",
+              machineId: log.machineId,
+              title: `Mantenimiento próximo — ${machine.code}`,
+              message: `La ${machine.name} ha alcanzado el ${Math.round(newPct)}% de su ciclo de uso. Horas actuales: ${newHours.toFixed(1)}h de ${threshold.horasCiclo}h. Programar mantenimiento preventivo.`,
+              createdAt: now,
+              read: false,
+              actionType: "schedule-otm",
+            },
+            ...n,
+          ]);
+        }
+      }
+    },
+
+    resetCycle: (machineId, otmRef) => {
+      const machine = machines.find((m) => m.id === machineId);
+      const now = new Date().toISOString();
+      setUsageCycles((cycles) =>
+        cycles.map((c) =>
+          c.machineId === machineId
+            ? { ...c, horasAcumuladas: 0, ultimoReset: now, otmRef }
+            : c,
+        ),
+      );
+      if (machine) {
+        setNotifications((n) => [
+          {
+            id: uid(),
+            type: "reset",
+            machineId,
+            title: `Ciclo reiniciado — ${machine.code}`,
+            message: `Mantenimiento completado. El contador de uso de ${machine.name} fue reiniciado. Nuevo ciclo iniciado.`,
+            createdAt: now,
+            read: false,
+          },
+          ...n,
+        ]);
+      }
+    },
+
+    // ── Notifications ──
+    markNotificationRead: (id) =>
+      setNotifications((n) => n.map((x) => (x.id === id ? { ...x, read: true } : x))),
+    markAllRead: () =>
+      setNotifications((n) => n.map((x) => ({ ...x, read: true }))),
+    deleteNotification: (id) =>
+      setNotifications((n) => n.filter((x) => x.id !== id)),
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

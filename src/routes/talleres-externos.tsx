@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +40,9 @@ function Page() {
     (statusFilter === "all" || r.status === statusFilter) &&
     (machineFilter === "all" || r.machineId === machineFilter),
   ), [workshopRecords, statusFilter, machineFilter]);
+
+  const childMatches = useChildMatches();
+  if (childMatches.length > 0) return <Outlet />;
 
   return (
     <AppShell title="Talleres Externos">

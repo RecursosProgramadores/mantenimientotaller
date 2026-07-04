@@ -16,6 +16,13 @@ interface Props {
   open: boolean;
   onOpenChange: (b: boolean) => void;
   recordId?: string | null;
+  prefill?: {
+    machineId?: string;
+    typeId?: string;
+    notes?: string;
+    status?: import("@/context/MantePro").RecordStatus;
+    urgent?: boolean;
+  };
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -31,14 +38,37 @@ function emptyRecord(otm: string): Omit<MaintenanceRecord, "id"> {
   };
 }
 
-export function MaintenanceFormDialog({ open, onOpenChange, recordId }: Props) {
+export function MaintenanceFormDialog({ open, onOpenChange, recordId, prefill }: Props) {
   const { records, machines, types, addRecord, updateRecord } = useMantePro();
   const existing = recordId ? records.find((r) => r.id === recordId) : null;
 
-  const [f, setF] = useState<Omit<MaintenanceRecord, "id">>(() => existing ?? emptyRecord(nextOTM(records)));
+  const [f, setF] = useState<Omit<MaintenanceRecord, "id">>(() => {
+    if (existing) return existing;
+    const base = emptyRecord(nextOTM(records));
+    if (prefill) {
+      return {
+        ...base,
+        machineId: prefill.machineId ?? base.machineId,
+        typeId: prefill.typeId ?? base.typeId,
+        notes: prefill.notes ?? base.notes,
+        status: prefill.status ?? base.status,
+      };
+    }
+    return base;
+  });
 
   useEffect(() => {
-    if (open) setF(existing ?? emptyRecord(nextOTM(records)));
+    if (open) {
+      if (existing) { setF(existing); return; }
+      const base = emptyRecord(nextOTM(records));
+      setF(prefill ? {
+        ...base,
+        machineId: prefill.machineId ?? "",
+        typeId: prefill.typeId ?? "",
+        notes: prefill.notes ?? "",
+        status: prefill.status ?? "En Proceso",
+      } : base);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, recordId]);
 
@@ -82,7 +112,10 @@ export function MaintenanceFormDialog({ open, onOpenChange, recordId }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border max-w-4xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{existing ? `Editar ${existing.otm}` : `Nueva orden — ${f.otm}`}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {prefill?.urgent && <span className="rounded bg-red-500/20 px-2 py-0.5 text-xs text-red-400 font-semibold">🔴 URGENTE</span>}
+            {existing ? `Editar ${existing.otm}` : `Nueva orden — ${f.otm}`}
+          </DialogTitle>
         </DialogHeader>
 
         <Section title="1. Orden de Trabajo">
@@ -211,7 +244,12 @@ export function MaintenanceFormDialog({ open, onOpenChange, recordId }: Props) {
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={submit}>{existing ? "Guardar cambios" : "Crear OTM"}</Button>
+          <Button
+            onClick={submit}
+            className={prefill?.urgent && !existing ? "bg-red-600 hover:bg-red-700 text-white" : ""}
+          >
+            {existing ? "Guardar cambios" : prefill?.urgent ? "Crear OTM Urgente" : "Crear OTM"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
