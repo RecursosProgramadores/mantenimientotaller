@@ -9,6 +9,7 @@ import { useEffect } from "react";
 
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { MantePoProvider } from "../context/MantePro";
+import { AuthProvider } from "../context/AuthContext";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
@@ -82,10 +83,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <MantePoProvider>
-        <Outlet />
-        <Toaster />
-      </MantePoProvider>
+      <AuthProvider>
+        <MantePoProvider>
+          <Outlet />
+          <Toaster />
+        </MantePoProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

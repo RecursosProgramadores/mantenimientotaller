@@ -1,113 +1,76 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { AppShell } from "@/components/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMantePro } from "@/context/MantePro";
-import { Plus, Trash2, Pencil, Save, X } from "lucide-react";
-import { toast } from "sonner";
+const fs = require('fs');
+const path = 'src/routes/configuracion.tsx';
+let code = fs.readFileSync(path, 'utf8');
 
-export const Route = createFileRoute("/configuracion")({
-  head: () => ({ meta: [{ title: "Configuración — MantePro" }, { name: "description", content: "Configuración general, usuarios, talleres y repuestos." }] }),
-  component: Page,
-});
+// 1. Add Edit/Save/Cancel Icons import
+if (!code.includes('Save')) {
+  code = code.replace(/import { Plus, Trash2 } from "lucide-react";/, 'import { Plus, Trash2, Pencil, Save, X } from "lucide-react";');
+}
 
-function Page() {
+// 2. Replace Users component
+const oldUsers = /function Users\(\) \{[\s\S]*?\} \/\/[ ]*Users End/i; // I don't have this comment, I will just replace from function Users to function Workshops
+const usersRegex = /function Users\(\) \{[\s\S]*?(?=function Workshops\(\) \{)/;
+const newUsers = `function Users() {
+  const { technicians, addTechnician, updateTechnician, deleteTechnician } = useMantePro();
+  const [form, setForm] = useState({ name: "", email: "", role: "", area: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", role: "", area: "" });
+
   return (
-    <AppShell title="Configuración">
-      <Tabs defaultValue="org">
-        <TabsList className="bg-card border border-border">
-          <TabsTrigger value="org">Organización</TabsTrigger>
-          
-          <TabsTrigger value="workshops">Talleres</TabsTrigger>
-          <TabsTrigger value="parts">Repuestos</TabsTrigger>
-          <TabsTrigger value="notif">Notificaciones & KPI</TabsTrigger>
-        </TabsList>
-        <TabsContent value="org" className="mt-4"><Org /></TabsContent>
-        
-        <TabsContent value="workshops" className="mt-4"><Workshops /></TabsContent>
-        <TabsContent value="parts" className="mt-4"><Parts /></TabsContent>
-        <TabsContent value="notif" className="mt-4"><Notif /></TabsContent>
-      </Tabs>
-    </AppShell>
+    <Card className="bg-card border-border">
+      <CardHeader><CardTitle className="text-base">Técnicos / Usuarios</CardTitle></CardHeader>
+      <CardContent>
+        <div className="grid sm:grid-cols-5 gap-2 mb-4">
+          <Input placeholder="Nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Input placeholder="Rol" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+          <Input placeholder="Área" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} />
+          <Button onClick={() => { if (!form.name || !form.email) return toast.error("Nombre y Email requeridos"); addTechnician(form); setForm({ name: "", email: "", role: "", area: "" }); toast.success("Agregado"); }}>
+            <Plus className="h-4 w-4 mr-1" /> Agregar
+          </Button>
+        </div>
+        <table className="w-full text-sm">
+          <thead className="text-xs text-muted-foreground uppercase border-b border-border">
+            <tr><th className="text-left p-2">Nombre</th><th className="text-left p-2">Email</th><th className="text-left p-2">Rol</th><th className="text-left p-2">Área</th><th /></tr>
+          </thead>
+          <tbody>
+            {technicians.map((t) => (
+              <tr key={t.id} className="border-b border-border last:border-0">
+                {editingId === t.id ? (
+                  <>
+                    <td className="p-2"><Input className="h-8" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} /></td>
+                    <td className="p-2"><Input className="h-8" value={editForm.email} onChange={(e) => setEditForm({...editForm, email: e.target.value})} /></td>
+                    <td className="p-2"><Input className="h-8" value={editForm.role} onChange={(e) => setEditForm({...editForm, role: e.target.value})} /></td>
+                    <td className="p-2"><Input className="h-8" value={editForm.area} onChange={(e) => setEditForm({...editForm, area: e.target.value})} /></td>
+                    <td className="p-2 text-right">
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-success" onClick={() => { updateTechnician(t.id, editForm); setEditingId(null); toast.success("Guardado"); }}><Save className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="p-2">{t.name}</td><td className="p-2">{t.email}</td><td className="p-2">{t.role}</td><td className="p-2">{t.area}</td>
+                    <td className="p-2 text-right">
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => { setEditingId(t.id); setEditForm({ name: t.name, email: t.email || '', role: t.role, area: t.area }); }}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-critical" onClick={() => deleteTechnician(t.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </CardContent>
+    </Card>
   );
 }
 
-function Org() {
-  const { settings, updateSettings } = useMantePro();
-  return (
-    <div className="max-w-3xl space-y-6">
-      <div>
-        <h3 className="text-lg font-medium">Perfil de Organización</h3>
-        <p className="text-sm text-muted-foreground">Administra la información de tu empresa y personaliza la identidad visual en el sistema.</p>
-      </div>
-      
-      <div className="grid sm:grid-cols-2 gap-6">
-        <Card className="bg-card border-border shadow-sm">
-          <CardHeader><CardTitle className="text-base font-medium">Detalles Principales</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nombre de la Empresa / Taller</Label>
-              <Input 
-                value={settings.institutionName} 
-                onChange={(e) => updateSettings({ institutionName: e.target.value })} 
-                placeholder="Ej. Taller Metalmecánico del Norte"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Técnico Responsable / Administrador</Label>
-              <Input 
-                value="ING. JOHNNY BRYNNER VILCHEZ MIRANDA"
-                disabled
-                className="bg-muted text-muted-foreground"
-              />
-              <p className="text-xs text-muted-foreground">El usuario administrador fue configurado globalmente.</p>
-            </div>
-          </CardContent>
-        </Card>
+`;
+code = code.replace(usersRegex, newUsers);
 
-        <Card className="bg-card border-border shadow-sm">
-          <CardHeader><CardTitle className="text-base font-medium">Identidad Visual</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Logo del Sistema</Label>
-              <div className="flex items-center gap-4 mt-2">
-                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 border-dashed border-border bg-muted flex items-center justify-center">
-                  {settings.institutionLogo ? (
-                    <img src={settings.institutionLogo} alt="Logo" className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-xs text-muted-foreground text-center px-2">Sin logo</span>
-                  )}
-                </div>
-                <div className="flex-1 space-y-2">
-                  <Input type="file" accept="image/*" className="w-full text-xs" onChange={(e) => {
-                    const f = e.target.files?.[0]; if (!f) return;
-                    const r = new FileReader();
-                    r.onload = () => updateSettings({ institutionLogo: r.result as string });
-                    r.readAsDataURL(f);
-                  }} />
-                  <p className="text-[10px] text-muted-foreground">Se recomienda una imagen cuadrada (PNG, JPG) de al menos 256x256 px.</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="flex justify-end">
-        <Button onClick={() => toast.success("Preferencias guardadas correctamente")}>
-          <Save className="h-4 w-4 mr-2" />
-          Guardar Cambios
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function Workshops() {
+// 3. Replace Workshops component
+const workshopsRegex = /function Workshops\(\) \{[\s\S]*?(?=function Parts\(\) \{)/;
+const newWorkshops = `function Workshops() {
   const { workshops, addWorkshop, updateWorkshop, deleteWorkshop } = useMantePro();
   const [form, setForm] = useState({ name: "", contact: "", phone: "", specialty: "", address: "", machinesInService: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -163,7 +126,12 @@ function Workshops() {
   );
 }
 
-function Parts() {
+`;
+code = code.replace(workshopsRegex, newWorkshops);
+
+// 4. Replace Parts component
+const partsRegex = /function Parts\(\) \{[\s\S]*/;
+const newParts = `function Parts() {
   const { spareParts, addSparePart, updateSparePart, deleteSparePart } = useMantePro();
   const [form, setForm] = useState({ name: "", reference: "", supplier: "", price: 0, stock: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -242,3 +210,8 @@ function Notif() {
     </Card>
   );
 }
+`;
+code = code.replace(partsRegex, newParts);
+
+fs.writeFileSync(path, code);
+console.log("Patched UI configuration components!");

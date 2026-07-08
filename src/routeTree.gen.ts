@@ -16,6 +16,7 @@ import { Route as ReportesRouteImport } from './routes/reportes'
 import { Route as NotificacionesRouteImport } from './routes/notificaciones'
 import { Route as MaquinasRouteImport } from './routes/maquinas'
 import { Route as MantenimientosRouteImport } from './routes/mantenimientos'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as FichasTecnicasRouteImport } from './routes/fichas-tecnicas'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as IndexRouteImport } from './routes/index'
@@ -58,6 +59,11 @@ const MantenimientosRoute = MantenimientosRouteImport.update({
   path: '/mantenimientos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FichasTecnicasRoute = FichasTecnicasRouteImport.update({
   id: '/fichas-tecnicas',
   path: '/fichas-tecnicas',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/configuracion': typeof ConfiguracionRoute
   '/fichas-tecnicas': typeof FichasTecnicasRoute
+  '/login': typeof LoginRoute
   '/mantenimientos': typeof MantenimientosRouteWithChildren
   '/maquinas': typeof MaquinasRouteWithChildren
   '/notificaciones': typeof NotificacionesRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/configuracion': typeof ConfiguracionRoute
   '/fichas-tecnicas': typeof FichasTecnicasRoute
+  '/login': typeof LoginRoute
   '/mantenimientos': typeof MantenimientosRouteWithChildren
   '/maquinas': typeof MaquinasRouteWithChildren
   '/notificaciones': typeof NotificacionesRoute
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/configuracion': typeof ConfiguracionRoute
   '/fichas-tecnicas': typeof FichasTecnicasRoute
+  '/login': typeof LoginRoute
   '/mantenimientos': typeof MantenimientosRouteWithChildren
   '/maquinas': typeof MaquinasRouteWithChildren
   '/notificaciones': typeof NotificacionesRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/'
     | '/configuracion'
     | '/fichas-tecnicas'
+    | '/login'
     | '/mantenimientos'
     | '/maquinas'
     | '/notificaciones'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/'
     | '/configuracion'
     | '/fichas-tecnicas'
+    | '/login'
     | '/mantenimientos'
     | '/maquinas'
     | '/notificaciones'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/'
     | '/configuracion'
     | '/fichas-tecnicas'
+    | '/login'
     | '/mantenimientos'
     | '/maquinas'
     | '/notificaciones'
@@ -187,6 +199,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ConfiguracionRoute: typeof ConfiguracionRoute
   FichasTecnicasRoute: typeof FichasTecnicasRoute
+  LoginRoute: typeof LoginRoute
   MantenimientosRoute: typeof MantenimientosRouteWithChildren
   MaquinasRoute: typeof MaquinasRouteWithChildren
   NotificacionesRoute: typeof NotificacionesRoute
@@ -245,6 +258,13 @@ declare module '@tanstack/react-router' {
       path: '/mantenimientos'
       fullPath: '/mantenimientos'
       preLoaderRoute: typeof MantenimientosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fichas-tecnicas': {
@@ -331,6 +351,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ConfiguracionRoute: ConfiguracionRoute,
   FichasTecnicasRoute: FichasTecnicasRoute,
+  LoginRoute: LoginRoute,
   MantenimientosRoute: MantenimientosRouteWithChildren,
   MaquinasRoute: MaquinasRouteWithChildren,
   NotificacionesRoute: NotificacionesRoute,

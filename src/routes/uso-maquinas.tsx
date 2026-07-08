@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMantePro, getMachineAlertStatus, getMachineUsagePct, type UsageLog } from "@/context/MantePro";
-import { Plus, Clock, RefreshCw, AlertTriangle } from "lucide-react";
+import { Plus, Clock, RefreshCw, AlertTriangle , Printer} from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/uso-maquinas")({
@@ -65,7 +65,7 @@ function CircularGauge({ pct }: { pct: number }) {
         fontWeight="bold"
         fontFamily="monospace"
       >
-        {pct}%
+        {Number(pct).toFixed(2)}%
       </text>
       <text x="50" y="61" textAnchor="middle" fill="#6B7280" fontSize="9">
         uso ciclo
@@ -160,7 +160,10 @@ function MachineUsageCard({ machineId, onRegister }: { machineId: string; onRegi
 // ── Register Usage Modal ──────────────────────────────────────────────────────
 interface LogFormState {
   machineId: string;
-  operador: string;
+  tipoOperador: "Alumno" | "Externo";
+  nombre: string;
+  dni: string;
+  codigoAlumno: string;
   startAt: string;
   endAt: string;
   hours: string;
@@ -198,15 +201,19 @@ function RegisterModal({
   const defaultStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours() - 1)}:00`;
   const defaultEnd = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:00`;
 
-  const [form, setForm] = useState<LogFormState>({
+  const initialFormState: LogFormState = {
     machineId: defaultMachineId ?? "",
-    operador: "",
+    tipoOperador: "Alumno",
+    nombre: "",
+    dni: "",
+    codigoAlumno: "",
     startAt: defaultStart,
     endAt: defaultEnd,
     hours: "1",
     turno: "Mañana",
     observaciones: "",
-  });
+  };
+  const [form, setForm] = useState<LogFormState>(initialFormState);
 
   const setF = <K extends keyof LogFormState>(k: K, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -230,19 +237,25 @@ function RegisterModal({
 
   const submit = () => {
     if (!form.machineId) { toast.error("Selecciona una máquina"); return; }
-    if (!form.operador.trim()) { toast.error("Ingresa el operador"); return; }
+    if (!form.nombre.trim()) { toast.error("Ingresa el nombre del operador"); return; }
+    if (!form.dni.trim()) { toast.error("Ingresa el DNI del operador"); return; }
+    if (form.tipoOperador === "Alumno" && !form.codigoAlumno.trim()) { toast.error("Ingresa el código de estudiante"); return; }
     const hours = Number(form.hours);
     if (hours <= 0) { toast.error("Las horas deben ser mayores a 0"); return; }
+
+    const finalOperador = form.tipoOperador === "Alumno" 
+      ? `Alumno: ${form.nombre} | DNI: ${form.dni} | Cód: ${form.codigoAlumno}`
+      : `Externo: ${form.nombre} | DNI: ${form.dni}`;
 
     addLog({
       machineId: form.machineId,
       startAt: form.startAt,
       endAt: form.endAt,
       hours,
-      operador: form.operador,
+      operador: finalOperador,
       turno: form.turno,
       observaciones: form.observaciones || undefined,
-      registradoPor: "J. Mendoza",
+      registradoPor: "ING. JOHNNY BRYNNER VILCHEZ MIRANDA",
     });
 
     const newAccum = (currentCycle?.horasAcumuladas ?? 0) + hours;
@@ -256,11 +269,11 @@ function RegisterModal({
       toast.warning(`⚠ ${m?.code} ha alcanzado el ${newPct}% de su umbral de mantenimiento`, { duration: 5000 });
     }
 
-    onClose();
+    setForm(initialFormState); onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => { if(!o) { setForm(initialFormState); onClose(); } }}>
       <DialogContent className="bg-card border-border max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -282,7 +295,7 @@ function RegisterModal({
                     <SelectItem key={m.id} value={m.id}>
                       <span className="font-mono">{m.code}</span> — {m.name}
                       <span className={`ml-2 text-xs ${p >= 100 ? "text-red-400" : p >= 60 ? "text-amber-400" : "text-green-400"}`}>
-                        · {p}%
+                        · {Number(p).toFixed(2)}%
                       </span>
                     </SelectItem>
                   );
@@ -299,17 +312,34 @@ function RegisterModal({
             )}
           </div>
 
-          {/* Operator */}
-          <div>
-            <Label className="text-xs">Operador</Label>
-            <Select value={form.operador} onValueChange={(v) => setF("operador", v)}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar operador…" /></SelectTrigger>
-              <SelectContent>
-                {operators.map((t: any) => (
-                  <SelectItem key={t.id} value={t.name}>{t.name} · {t.role}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Operator Type */}
+          <div className="grid gap-3 p-3 bg-secondary/30 rounded-md border border-border">
+            <div>
+              <Label className="text-xs text-amber-500 font-semibold mb-1 block">Datos del Operador</Label>
+              <Select value={form.tipoOperador} onValueChange={(v: "Alumno" | "Externo") => setF("tipoOperador", v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Alumno">Alumno</SelectItem>
+                  <SelectItem value="Externo">Persona Externa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Nombre Completo</Label>
+                <Input className="h-8 text-xs" value={form.nombre} onChange={(e) => setF("nombre", e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">DNI</Label>
+                <Input className="h-8 text-xs" value={form.dni} onChange={(e) => setF("dni", e.target.value)} />
+              </div>
+            </div>
+            {form.tipoOperador === "Alumno" && (
+              <div>
+                <Label className="text-xs">Código de Estudiante</Label>
+                <Input className="h-8 text-xs" value={form.codigoAlumno} onChange={(e) => setF("codigoAlumno", e.target.value)} />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -367,7 +397,7 @@ function RegisterModal({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function UsoMaquinasPage() {
-  const { machines, usageLogs, usageCycles } = useMantePro();
+  const { machines, usageLogs, usageCycles, addUsageLog, clearAllUsageLogs } = useMantePro();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedMachineId, setSelectedMachineId] = useState<string | undefined>();
 
@@ -426,8 +456,63 @@ function UsoMaquinasPage() {
 
   return (
     <AppShell title="Uso de Máquinas">
+      <div className="flex justify-end mb-4">
+        <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
+          <Printer className="h-4 w-4 mr-2" /> Imprimir Registro
+        </Button>
+      </div>
+
+      {/* ── Print Header ── */}
+      <div className="hidden print:block mb-8">
+        <div className="flex justify-between items-end border-b-2 border-primary pb-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Registro de Uso de Máquinas</h1>
+            <p className="text-muted-foreground mt-1 text-sm">MantePro — Sistema de Gestión de Mantenimiento</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Fecha de Reporte</p>
+            <p className="text-sm font-medium">{new Date().toLocaleString("es-PE", { dateStyle: "long", timeStyle: "short" })}</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-6 mb-6">
+          <div className="rounded-lg border border-border p-4">
+            <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3">Resumen General</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between border-b border-border/50 pb-1">
+                <span className="text-muted-foreground">Máquinas Registradas:</span> 
+                <span className="font-semibold">{machines.length}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/50 pb-1">
+                <span className="text-muted-foreground">Registros en reporte:</span> 
+                <span className="font-semibold">{filteredLogs.length}</span>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-border p-4">
+            <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3">Filtros Aplicados</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between border-b border-border/50 pb-1">
+                <span className="text-muted-foreground">Máquina:</span> 
+                <span className="font-semibold">{filterMachine === 'all' ? 'Todas' : machines.find(m => m.id === filterMachine)?.code || 'Todas'}</span>
+              </div>
+              <div className="flex justify-between border-b border-border/50 pb-1">
+                <span className="text-muted-foreground">Turno:</span> 
+                <span className="font-semibold">{filterTurno === 'all' ? 'Todos' : filterTurno}</span>
+              </div>
+              {(filterFrom || filterTo) && (
+                <div className="flex justify-between border-b border-border/50 pb-1">
+                  <span className="text-muted-foreground">Periodo:</span> 
+                  <span className="font-semibold">{filterFrom || 'Inicio'} al {filterTo || 'Fin'}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      
       {/* ── KPI row ── */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-3 gap-3 mb-5 print:hidden">
         <div className="rounded-lg bg-card border border-border p-3">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total máquinas</div>
           <div className="text-2xl font-bold mt-1">{machines.length}</div>
@@ -443,7 +528,7 @@ function UsoMaquinasPage() {
       </div>
 
       {/* ── Live Usage Dashboard ── */}
-      <div className="mb-6">
+      <div className="mb-6 print:hidden">
         <h2 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
           Estado en tiempo real
         </h2>
@@ -456,12 +541,12 @@ function UsoMaquinasPage() {
 
       {/* ── Log Table ── */}
       <div className="mb-6">
-        <h2 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+        <h2 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider print:hidden">
           Log de Uso
         </h2>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex flex-wrap gap-2 mb-3 print:hidden">
           <Select value={filterMachine} onValueChange={setFilterMachine}>
             <SelectTrigger className="w-[180px] bg-card text-xs h-8"><SelectValue placeholder="Máquina" /></SelectTrigger>
             <SelectContent>

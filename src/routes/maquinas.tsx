@@ -33,7 +33,7 @@ export const Route = createFileRoute("/maquinas")({
 type SortKey = "name" | "code" | "lastMaint" | "criticality";
 
 function MachinesPage() {
-  const { machines, records, deleteMachine, updateMachine, settings, usageCycles } = useMantePro();
+  const { machines, records, deleteMachine, updateMachine, settings, usageCycles, usageLogs } = useMantePro();
   const [q, setQ] = useState("");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [status, setStatus] = useState<string>("todos");
@@ -144,7 +144,8 @@ function MachinesPage() {
             const cycle = usageCycles.find((c) => c.machineId === m.id);
             const alertStatus = getMachineAlertStatus(cycle, m.threshold);
             const usagePct = getMachineUsagePct(cycle, m.threshold);
-            const overBy = cycle && m.threshold ? Math.max(0, cycle.horasAcumuladas - m.threshold.horasCiclo) : 0;
+            const totalHist = usageLogs.filter(l => l.machineId === m.id).reduce((s, l) => s + (Number(l.hours) || 0), 0);
+            const overBy = cycle && m.threshold ? Math.max(0, (Number(cycle.horasAcumuladas) || 0) - m.threshold.horasCiclo) : 0;
             const daysSince = lm ? Math.floor((Date.now() - new Date(lm.date).getTime()) / 86400000) : null;
             const cardBorder =
               alertStatus === "critical" ? "border-red-500/50 machine-card-critical" :
@@ -174,7 +175,7 @@ function MachinesPage() {
                   </div>
                   <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
                     <div><dt className="text-muted-foreground">Área</dt><dd className="truncate">{m.area || m.location || "—"}</dd></div>
-                    <div><dt className="text-muted-foreground">Horas uso</dt><dd className="font-mono">{formatNumber(m.hoursOfUse)}</dd></div>
+                    <div><dt className="text-muted-foreground" title="Horas totales históricas trabajadas">Horas totales</dt><dd className="font-mono">{formatNumber(totalHist, 2)}h</dd></div>
                     <div><dt className="text-muted-foreground">Último mant.</dt><dd>{lm ? formatDate(lm.date) : "—"}</dd></div>
                     <div><dt className="text-muted-foreground">Próximo</dt><dd className={nm ? "text-primary" : ""}>{nm ? formatDate(nm.date) : "—"}</dd></div>
                   </dl>
@@ -182,9 +183,9 @@ function MachinesPage() {
                   {m.threshold && (
                     <div className="mt-2">
                       <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                        <span>Ciclo uso</span>
+                        <span>Ciclo actual (uso)</span>
                         <span className={alertStatus === "critical" ? "text-red-400" : alertStatus === "warning" ? "text-amber-400" : "text-green-400"}>
-                          {cycle?.horasAcumuladas.toFixed(1) ?? 0}h / {m.threshold.horasCiclo}h
+                          {Number(cycle?.horasAcumuladas || 0).toFixed(2)}h / {m.threshold.horasCiclo}h
                         </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-border overflow-hidden">

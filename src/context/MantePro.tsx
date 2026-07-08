@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export type MachineStatus = "Operativo" | "En Revisión" | "En Taller" | "Fuera de Servicio";
 export type Criticality = "Alto" | "Medio" | "Bajo";
@@ -206,8 +208,21 @@ export interface WorkshopRecord {
   rating?: number;
 }
 
-export interface SparePart { id: string; name: string; reference: string; supplier: string; price: number }
-export interface Technician { id: string; name: string; role: string; area: string }
+export interface SparePart { id: string; name: string; reference: string; supplier: string; price: number; stock?: number }
+export interface Technician { id: string; name: string; email?: string; role: string; area: string; phone?: string; }
+
+export const getMachineUsagePct = (cycle?: UsageCycle, threshold?: MachineThreshold) => {
+  if (!cycle || !threshold || threshold.horasCiclo <= 0) return 0;
+  return (cycle.horasAcumuladas / threshold.horasCiclo) * 100;
+};
+
+export const getMachineAlertStatus = (cycle?: UsageCycle, threshold?: MachineThreshold): AlertStatus => {
+  const pct = getMachineUsagePct(cycle, threshold);
+  if (pct >= 100) return "critical";
+  if (pct >= (threshold?.alertaPct || 80)) return "warning";
+  return "normal";
+};
+
 export interface AppSettings {
   institutionName: string;
   institutionLogo?: string;
@@ -236,17 +251,17 @@ interface State {
   updateMachine: (id: string, m: Partial<Machine>) => void;
   deleteMachine: (id: string) => void;
   // ── Record CRUD ──
-  addRecord: (r: Omit<MaintenanceRecord, "id">) => string;
-  updateRecord: (id: string, r: Partial<MaintenanceRecord>) => void;
+  addRecord: (r: Omit<MaintenanceRecord, "id">) => Promise<string>;
+  updateRecord: (id: string, r: Partial<MaintenanceRecord>) => Promise<void>;
   deleteRecord: (id: string) => void;
   // ── Type CRUD ──
   addType: (t: Omit<MaintenanceType, "id">) => void;
   updateType: (id: string, t: Partial<MaintenanceType>) => void;
   deleteType: (id: string) => void;
   // ── Workshop CRUD ──
-  addWorkshop: (w: Omit<Workshop, "id">) => void;
-  updateWorkshop: (id: string, w: Partial<Workshop>) => void;
-  deleteWorkshop: (id: string) => void;
+  addWorkshop: (w: Omit<Workshop, "id">) => Promise<void>;
+  updateWorkshop: (id: string, w: Partial<Workshop>) => Promise<void>;
+  deleteWorkshop: (id: string) => Promise<void>;
   // ── Component CRUD ──
   upsertComponent: (machineId: string, c: CriticalComponent) => void;
   deleteComponent: (machineId: string, componentId: string) => void;
@@ -261,16 +276,17 @@ interface State {
   addDocumentsToWorkshop: (id: string, docs: AppDocument[]) => void;
   removeDocumentFromWorkshop: (id: string, docId: string) => void;
   // ── Spare Parts & Technicians ──
-  addSparePart: (p: Omit<SparePart, "id">) => void;
-  updateSparePart: (id: string, p: Partial<SparePart>) => void;
-  deleteSparePart: (id: string) => void;
-  addTechnician: (t: Omit<Technician, "id">) => void;
-  updateTechnician: (id: string, t: Partial<Technician>) => void;
-  deleteTechnician: (id: string) => void;
-  updateSettings: (s: Partial<AppSettings>) => void;
+  addSparePart: (p: Omit<SparePart, "id">) => Promise<void>;
+  updateSparePart: (id: string, p: Partial<SparePart>) => Promise<void>;
+  deleteSparePart: (id: string) => Promise<void>;
+  addTechnician: (t: Omit<Technician, "id">) => Promise<void>;
+  updateTechnician: (id: string, t: Partial<Technician>) => Promise<void>;
+  deleteTechnician: (id: string) => Promise<void>;
+  updateSettings: (s: Partial<AppSettings>) => Promise<void>;
   allDocuments: () => AppDocument[];
   // ── Usage Tracking ──
   addUsageLog: (log: Omit<UsageLog, "id">) => void;
+  clearAllUsageLogs: () => void;
   resetCycle: (machineId: string, otmRef?: string) => void;
   // ── Notifications ──
   markNotificationRead: (id: string) => void;
@@ -284,702 +300,737 @@ let _seedCounter = 0;
 const sid = (prefix = "s") => `${prefix}-${++_seedCounter}`;
 
 // ─── Seed Data ────────────────────────────────────────────────────────────────
-const initialMachines: Machine[] = [
-  {
-    id: "m1", code: "FRS-001", name: "Fresadora/Taladro-Fresadora", brand: "Sieg", model: "ZX7032",
-    serial: "ZX7032-2015-0142", purchaseDate: "2015-06-15", cost: 5800,
-    area: "Taller de Mecanizado", department: "Facultad de Ingeniería Mecánica",
-    powerKw: 1.5, voltageV: 220, frequencyHz: 60, weightKg: 400,
-    annualHours: 300, daysPerWeek: 4,
-    status: "Operativo", criticality: "Alto",
-    observations: "Equipo de uso académico. Requiere lubricación periódica y revisión de correas trapezoidales.",
-    hoursOfUse: 4820,
-    components: [
-      { id: sid(), name: "Correas trapezoidales", function: "Transmisión motor-husillo", state: "Operativo con desgaste leve", criticality: "Alto" },
-      { id: sid(), name: "Guías de desplazamiento", function: "Movimiento de mesa X/Y", state: "Operativo", criticality: "Medio" },
-      { id: sid(), name: "Husillo principal", function: "Sujeción y giro de herramienta", state: "Operativo", criticality: "Alto" },
-      { id: sid(), name: "Rodamientos del husillo", function: "Soporte rotacional del husillo", state: "Operativo", criticality: "Medio" },
-      { id: sid(), name: "Motor eléctrico", function: "Fuente de potencia", state: "Operativo", criticality: "Bajo" },
-    ],
-    sheetUpdatedAt: "2025-06-15",
-    location: "Taller de Mecanizado", acquiredAt: "2015-06-15",
-    threshold: {
-      horasCiclo: 30, diasMaximos: 7, tiposIds: ["t-semanal", "t-mensual"],
-      alertaPct: 80, turno: "Tiempo completo", diasOperacion: [0, 1, 2, 3],
-      operadoresIds: ["u2", "u3"],
-    },
-  },
-  {
-    id: "m2", code: "TRN-002", name: "Torno CNC TC-450", brand: "Haas", model: "TC-450",
-    serial: "HAAS-TC450-9821", purchaseDate: "2019-07-22", cost: 48500,
-    area: "Nave A - Línea 2", department: "Producción",
-    powerKw: 11, voltageV: 380, frequencyHz: 60, weightKg: 2200,
-    annualHours: 1800, daysPerWeek: 6,
-    status: "En Revisión", criticality: "Alto",
-    hoursOfUse: 9120, components: [],
-    location: "Nave A - Línea 2", acquiredAt: "2019-07-22",
-    threshold: {
-      horasCiclo: 40, diasMaximos: 10, tiposIds: ["t-mensual"],
-      alertaPct: 80, turno: "Mañana", diasOperacion: [0, 1, 2, 3, 4, 5],
-      operadoresIds: ["u4"],
-    },
-  },
-  {
-    id: "m3", code: "PRS-003", name: "Prensa Hidráulica P-200", brand: "Enerpac", model: "P-200",
-    serial: "ENP-200-3344", purchaseDate: "2018-01-10", cost: 22000,
-    area: "Nave B - Estampado", department: "Producción",
-    powerKw: 7.5, voltageV: 380, frequencyHz: 60, weightKg: 1800,
-    annualHours: 1500, daysPerWeek: 5,
-    status: "En Taller", criticality: "Medio",
-    hoursOfUse: 12450, components: [],
-    location: "Nave B - Estampado", acquiredAt: "2018-01-10",
-    threshold: {
-      horasCiclo: 20, diasMaximos: 5, tiposIds: ["t-semanal"],
-      alertaPct: 80, turno: "Tarde", diasOperacion: [0, 1, 2, 3, 4],
-      operadoresIds: ["u6"],
-    },
-  },
-  {
-    id: "m4", code: "SLD-004", name: "Soldadora MIG-350", brand: "Lincoln", model: "MIG-350",
-    serial: "LIN-MIG350-7711", purchaseDate: "2022-09-05", cost: 3200,
-    area: "Nave B - Soldadura", department: "Producción",
-    powerKw: 12, voltageV: 220, frequencyHz: 60, weightKg: 95,
-    annualHours: 900, daysPerWeek: 5,
-    status: "Operativo", criticality: "Bajo",
-    hoursOfUse: 2100, components: [],
-    location: "Nave B - Soldadura", acquiredAt: "2022-09-05",
-    threshold: {
-      horasCiclo: 50, diasMaximos: 14, tiposIds: ["t-semanal", "t-mensual"],
-      alertaPct: 75, turno: "Mañana", diasOperacion: [0, 1, 2, 3, 4],
-      operadoresIds: ["u6"],
-    },
-  },
-  {
-    id: "m5", code: "CMP-005", name: "Compresor Industrial CI-75", brand: "Atlas Copco", model: "CI-75",
-    serial: "AC-CI75-0021", purchaseDate: "2017-04-18", cost: 18900,
-    area: "Sala de Máquinas", department: "Servicios",
-    powerKw: 55, voltageV: 380, frequencyHz: 60, weightKg: 950,
-    annualHours: 4000, daysPerWeek: 7,
-    status: "Fuera de Servicio", criticality: "Alto",
-    hoursOfUse: 18900, components: [],
-    location: "Sala de Máquinas", acquiredAt: "2017-04-18",
-    threshold: {
-      horasCiclo: 25, diasMaximos: 7, tiposIds: ["t-diario", "t-semanal"],
-      alertaPct: 80, turno: "Tiempo completo", diasOperacion: [0, 1, 2, 3, 4, 5, 6],
-      operadoresIds: ["u2"],
-    },
-  },
-  {
-    id: "m6", code: "RCT-006", name: "Rectificadora R-800", brand: "Okuma", model: "R-800",
-    serial: "OKU-R800-5512", purchaseDate: "2020-11-30", cost: 31000,
-    area: "Nave A - Acabados", department: "Producción",
-    powerKw: 5.5, voltageV: 380, frequencyHz: 60, weightKg: 1100,
-    annualHours: 1200, daysPerWeek: 5,
-    status: "Operativo", criticality: "Medio",
-    hoursOfUse: 5630, components: [],
-    location: "Nave A - Acabados", acquiredAt: "2020-11-30",
-    threshold: {
-      horasCiclo: 60, diasMaximos: 30, tiposIds: ["t-mensual", "t-semestral"],
-      alertaPct: 80, turno: "Mañana", diasOperacion: [0, 1, 2, 3, 4],
-      operadoresIds: ["u3"],
-    },
-  },
-];
 
-const initialTypes: MaintenanceType[] = [
-  {
-    id: "t-diario", name: "Preventivo Diario", color: "success", frequency: "Diario", frequencyDays: 1,
-    estimatedHours: 0.5, active: true, category: "Preventivo",
-    description: "Inspección visual y limpieza diaria del equipo.",
-    activities: [
-      { id: sid(), text: "Limpieza general de virutas y residuos", durationMin: 10, role: "Operador" },
-      { id: sid(), text: "Inspección visual de fugas", durationMin: 5, role: "Operador" },
-      { id: sid(), text: "Verificar niveles de lubricante", durationMin: 10, role: "Operador" },
-    ],
-  },
-  {
-    id: "t-semanal", name: "Preventivo Semanal", color: "info", frequency: "Semanal", frequencyDays: 7,
-    estimatedHours: 1.5, active: true, category: "Preventivo",
-    description: "Revisión semanal de elementos de transmisión y lubricación.",
-    activities: [
-      { id: sid(), text: "Lubricar guías de desplazamiento", durationMin: 20, role: "Técnico" },
-      { id: sid(), text: "Revisar tensión de correas", durationMin: 25, role: "Técnico" },
-      { id: sid(), text: "Verificar ajuste de pernos", durationMin: 20, role: "Técnico" },
-    ],
-  },
-  {
-    id: "t-mensual", name: "Preventivo Mensual", color: "primary", frequency: "Mensual", frequencyDays: 30,
-    estimatedHours: 3, active: true, category: "Preventivo",
-    description: "Mantenimiento mensual completo con revisión eléctrica.",
-    activities: [
-      { id: sid(), text: "Cambio de lubricante de husillo", durationMin: 45, role: "Técnico" },
-      { id: sid(), text: "Inspección de conexiones eléctricas", durationMin: 30, role: "Electricista" },
-      { id: sid(), text: "Calibración de mesa X/Y", durationMin: 60, role: "Técnico" },
-    ],
-  },
-  {
-    id: "t-semestral", name: "Preventivo Semestral", color: "warning", frequency: "Semestral", frequencyDays: 180,
-    estimatedHours: 8, active: true, category: "Preventivo",
-    description: "Overhaul semestral con cambio de consumibles.",
-    activities: [
-      { id: sid(), text: "Cambio de correas trapezoidales", durationMin: 90, role: "Técnico" },
-      { id: sid(), text: "Cambio de rodamientos críticos", durationMin: 180, role: "Mecánico" },
-      { id: sid(), text: "Reapriete general", durationMin: 60, role: "Técnico" },
-    ],
-  },
-  {
-    id: "t-correctivo", name: "Correctivo", color: "critical", frequency: "A condición", frequencyDays: 0,
-    estimatedHours: 4, active: true, category: "Correctivo",
-    description: "Reparación de falla detectada en el equipo.",
-    activities: [
-      { id: sid(), text: "Diagnóstico de falla", durationMin: 60, role: "Técnico" },
-      { id: sid(), text: "Reparación / reemplazo", durationMin: 180, role: "Mecánico" },
-      { id: sid(), text: "Pruebas de funcionamiento", durationMin: 30, role: "Técnico" },
-    ],
-  },
-  {
-    id: "t-predictivo", name: "Predictivo", color: "accent", frequency: "A condición", frequencyDays: 90,
-    estimatedHours: 2, active: true, category: "Predictivo",
-    description: "Análisis de condición (vibraciones, termografía, aceites).",
-    activities: [
-      { id: sid(), text: "Medición de vibraciones", durationMin: 45, role: "Técnico Predictivo" },
-      { id: sid(), text: "Termografía", durationMin: 30, role: "Técnico Predictivo" },
-      { id: sid(), text: "Análisis de aceite", durationMin: 45, role: "Técnico Predictivo" },
-    ],
-  },
-  {
-    id: "t-taller", name: "Taller Externo", color: "yellow", frequency: "A condición", frequencyDays: 0,
-    estimatedHours: 0, active: true, category: "Correctivo",
-    description: "Servicio realizado por taller externo.",
-    activities: [
-      { id: sid(), text: "Coordinar retiro de equipo", durationMin: 30, role: "Supervisor" },
-      { id: sid(), text: "Seguimiento de orden de servicio", durationMin: 0, role: "Supervisor" },
-    ],
-  },
-];
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
-const dPlus = (d: number) => new Date(Date.UTC(2025, 5, 15) + d * 86400000).toISOString().slice(0, 10);
-
-const frsHistory: MaintenanceRecord[] = [
-  {
-    id: sid(), otm: "OTM-2020-001", machineId: "m1", typeId: "t-correctivo",
-    date: "2020-03-12", startTime: "08:30", endTime: "13:00",
-    technician: "Carlos Ruiz", supervisor: "J. Mendoza", area: "Taller de Mecanizado",
-    status: "Completado",
-    notes: "Falla de motor eléctrico — recalentamiento por sobrecarga.",
-    activities: [
-      { id: sid(), text: "Diagnóstico de falla", done: true, observations: "Bobinado del motor con cortocircuito parcial." },
-      { id: sid(), text: "Reemplazo de motor eléctrico 1.5kW", done: true },
-      { id: sid(), text: "Pruebas de funcionamiento", done: true },
-    ],
-    parts: [
-      { id: sid(), name: "Motor eléctrico 1.5kW 220V", quantity: 1, unitCost: 850 },
-      { id: sid(), name: "Cable de alimentación", quantity: 3, unitCost: 12 },
-    ],
-    laborCost: 180, cost: 1066,
-    postState: "Operativo", findings: "Recomendar protector térmico adicional.",
-    technicianSignature: "Carlos Ruiz", supervisorSignature: "J. Mendoza",
-  },
-  {
-    id: sid(), otm: "OTM-2021-014", machineId: "m1", typeId: "t-semestral",
-    date: "2021-09-08", startTime: "09:00", endTime: "17:30",
-    technician: "Juan Pérez", supervisor: "J. Mendoza", area: "Taller de Mecanizado",
-    status: "Completado",
-    notes: "Mantenimiento semestral programado.",
-    activities: [
-      { id: sid(), text: "Cambio de correas trapezoidales", done: true },
-      { id: sid(), text: "Cambio de rodamientos críticos", done: true },
-      { id: sid(), text: "Reapriete general", done: true },
-    ],
-    parts: [
-      { id: sid(), name: "Correa trapezoidal A-42", quantity: 2, unitCost: 35 },
-      { id: sid(), name: "Rodamiento 6205-2RS", quantity: 4, unitCost: 28 },
-    ],
-    laborCost: 240, cost: 422,
-    postState: "Operativo", findings: "Guías muestran desgaste — vigilar.",
-    technicianSignature: "Juan Pérez", supervisorSignature: "J. Mendoza",
-  },
-  {
-    id: sid(), otm: "OTM-2022-022", machineId: "m1", typeId: "t-correctivo",
-    date: "2022-05-19", startTime: "10:00", endTime: "12:30",
-    technician: "María López", supervisor: "J. Mendoza", area: "Taller de Mecanizado",
-    status: "Completado",
-    notes: "Ruido anormal en husillo principal.",
-    activities: [
-      { id: sid(), text: "Desmontaje del husillo", done: true },
-      { id: sid(), text: "Cambio de rodamientos del husillo", done: true, observations: "Pista exterior con picado." },
-      { id: sid(), text: "Montaje y alineación", done: true },
-    ],
-    parts: [
-      { id: sid(), name: "Rodamiento angular 7206 BEP", quantity: 2, unitCost: 95 },
-      { id: sid(), name: "Grasa SKF LGEP 2", quantity: 1, unitCost: 22 },
-    ],
-    laborCost: 150, cost: 362,
-    postState: "Operativo", findings: "Reducir intervalo de inspección.",
-    technicianSignature: "María López", supervisorSignature: "J. Mendoza",
-  },
-  {
-    id: sid(), otm: "OTM-2023-031", machineId: "m1", typeId: "t-predictivo",
-    date: "2023-11-04", startTime: "11:00", endTime: "13:00",
-    technician: "Luis Fernández", supervisor: "J. Mendoza", area: "Taller de Mecanizado",
-    status: "Completado",
-    notes: "Análisis predictivo trimestral.",
-    activities: [
-      { id: sid(), text: "Medición de vibraciones", done: true, observations: "ISO 10816 — zona B." },
-      { id: sid(), text: "Termografía", done: true, observations: "Motor a 62 °C, normal." },
-      { id: sid(), text: "Análisis de aceite", done: true },
-    ],
-    parts: [],
-    laborCost: 220, cost: 220,
-    postState: "Operativo", findings: "Continuar con plan preventivo actual.",
-    technicianSignature: "Luis Fernández", supervisorSignature: "J. Mendoza",
-  },
-  {
-    id: sid(), otm: "OTM-2024-007", machineId: "m1", typeId: "t-mensual",
-    date: "2024-04-22", startTime: "08:00", endTime: "11:30",
-    technician: "Juan Pérez", supervisor: "J. Mendoza", area: "Taller de Mecanizado",
-    status: "Completado",
-    notes: "Mantenimiento preventivo mensual.",
-    activities: [
-      { id: sid(), text: "Cambio de lubricante de husillo", done: true },
-      { id: sid(), text: "Inspección de conexiones eléctricas", done: true },
-      { id: sid(), text: "Calibración de mesa X/Y", done: true, observations: "Tolerancia 0.02 mm." },
-    ],
-    parts: [
-      { id: sid(), name: "Aceite ISO VG 68", quantity: 2, unitCost: 28 },
-    ],
-    laborCost: 140, cost: 196,
-    postState: "Operativo", findings: "Sin observaciones relevantes.",
-    technicianSignature: "Juan Pérez", supervisorSignature: "J. Mendoza",
-  },
-];
-
-const initialRecords: MaintenanceRecord[] = [
-  ...frsHistory,
-  {
-    id: sid(), otm: "OTM-2025-001", machineId: "m2", typeId: "t-correctivo",
-    date: "2025-06-14", startTime: "09:00", technician: "María López", supervisor: "J. Mendoza",
-    area: "Nave A", status: "En Proceso", notes: "Falla en eje principal — en diagnóstico.",
-    activities: [], parts: [], laborCost: 0, cost: 850,
-  },
-  {
-    id: sid(), otm: "OTM-2025-002", machineId: "m3", typeId: "t-semestral",
-    date: "2025-06-10", startTime: "08:00", endTime: "16:00",
-    technician: "Carlos Ruiz", supervisor: "J. Mendoza", area: "Nave B",
-    status: "Completado", notes: "Cambio programado de aceite hidráulico.",
-    activities: [], parts: [], laborCost: 200, cost: 540,
-    technicianSignature: "Carlos Ruiz", supervisorSignature: "J. Mendoza",
-  },
-  {
-    id: sid(), otm: "OTM-2025-003", machineId: "m4", typeId: "t-semanal",
-    date: "2025-06-08", technician: "Ana Torres", supervisor: "J. Mendoza",
-    area: "Nave B", status: "Completado", notes: "Revisión eléctrica semanal.",
-    activities: [], parts: [], laborCost: 90, cost: 90,
-    technicianSignature: "Ana Torres",
-  },
-  {
-    id: sid(), otm: "OTM-2025-004", machineId: "m1", typeId: "t-semanal",
-    date: dPlus(3), technician: "Juan Pérez", supervisor: "J. Mendoza",
-    area: "Taller de Mecanizado", status: "Programado", notes: "Inspección semanal programada.",
-    activities: [], parts: [], laborCost: 0, cost: 0,
-  },
-  {
-    id: sid(), otm: "OTM-2025-005", machineId: "m6", typeId: "t-semestral",
-    date: dPlus(12), technician: "Carlos Ruiz", supervisor: "J. Mendoza",
-    area: "Nave A", status: "Programado", notes: "Cambio semestral.",
-    activities: [], parts: [], laborCost: 0, cost: 0,
-  },
-];
-
-const initialWorkshops: Workshop[] = [
-  { id: "w1", name: "Talleres Mecánicos Andina", contact: "Roberto Silva", phone: "+34 911 234 567", specialty: "Mecánica de precisión", machinesInService: 1 },
-  { id: "w2", name: "ElectroMotor S.L.", contact: "Patricia Núñez", phone: "+34 912 987 654", specialty: "Bobinado de motores", machinesInService: 0 },
-  { id: "w3", name: "HidroServ Industrial", contact: "Miguel Ángel", phone: "+34 913 555 111", specialty: "Sistemas hidráulicos", machinesInService: 0 },
-];
-
-const initialSheets: TechSheet[] = [
-  { id: "s1", machineId: "m1", title: "Manual Fresadora ZX7032", updatedAt: "2024-08-12", pages: 84 },
-  { id: "s2", machineId: "m2", title: "Especificaciones Torno TC-450", updatedAt: "2024-05-03", pages: 120 },
-  { id: "s3", machineId: "m3", title: "Plan de mantenimiento Prensa P-200", updatedAt: "2024-09-21", pages: 42 },
-  { id: "s4", machineId: "m4", title: "Manual Soldadora MIG-350", updatedAt: "2025-01-10", pages: 56 },
-];
-
-const initialWorkshopRecords: WorkshopRecord[] = [
-  {
-    id: "wr1", machineId: "m3", workshopName: "HidroServ Industrial",
-    workshopAddress: "Av. Industrial 1245, Madrid", workshopPhone: "+34 913 555 111", workshopContact: "Miguel Ángel",
-    sentDate: "2025-06-05", estimatedReturn: "2025-06-25",
-    problemType: "Falla mecánica",
-    problemDescription: "Pérdida de presión en cilindro principal; fugas internas detectadas tras prueba de carga.",
-    affectedComponentIds: [],
-    condition: "No operativo", approvedBudget: 1850, authorizedBy: "J. Mendoza",
-    status: "En Taller", technician: "Carlos Ruiz",
-    documents: [],
-    logs: [
-      { id: sid(), at: "2025-06-05T09:00", note: "Equipo retirado por el taller. Acta firmada.", status: "En Taller" },
-      { id: sid(), at: "2025-06-10T11:30", note: "Taller confirma necesidad de cambio de sellos y revisión de bomba." },
-    ],
-  },
-];
-
-const initialSpareParts: SparePart[] = [
-  { id: "sp1", name: "Correa trapezoidal A-42", reference: "A-42", supplier: "Optibelt", price: 35 },
-  { id: "sp2", name: "Rodamiento 6205-2RS", reference: "6205-2RS", supplier: "SKF", price: 28 },
-  { id: "sp3", name: "Aceite ISO VG 68", reference: "VG68-5L", supplier: "Shell", price: 28 },
-  { id: "sp4", name: "Rodamiento angular 7206 BEP", reference: "7206-BEP", supplier: "SKF", price: 95 },
-];
-
-const initialTechnicians: Technician[] = [
-  { id: "u1", name: "J. Mendoza", role: "Jefe de Mantenimiento", area: "General" },
-  { id: "u2", name: "Carlos Ruiz", role: "Técnico Mecánico", area: "Taller de Mecanizado" },
-  { id: "u3", name: "Juan Pérez", role: "Técnico Mecánico", area: "Taller de Mecanizado" },
-  { id: "u4", name: "María López", role: "Técnico Eléctrico", area: "Nave A" },
-  { id: "u5", name: "Luis Fernández", role: "Técnico Predictivo", area: "General" },
-  { id: "u6", name: "Ana Torres", role: "Operadora", area: "Nave B" },
-];
-
+const initialMachines: Machine[] = [];
+const initialTypes: MaintenanceType[] = [];
+const initialRecords: MaintenanceRecord[] = [];
+const initialWorkshops: Workshop[] = [];
+const initialSheets: TechSheet[] = [];
+const initialWorkshopRecords: WorkshopRecord[] = [];
+const initialSpareParts: SparePart[] = [];
+const initialTechnicians: Technician[] = [];
 const initialSettings: AppSettings = {
-  institutionName: "Planta Industrial Norte",
+  institutionName: "Institución de Mantenimiento Industrial",
   notifyDaysBefore: 7,
-  mtbfGoalH: 220,
-  availabilityGoalPct: 95,
+  mtbfGoalH: 500,
+  availabilityGoalPct: 95
 };
+const initialUsageLogs: UsageLog[] = [];
+const initialUsageCycles: UsageCycle[] = [];
+const initialNotifications: AppNotification[] = [];
 
-// ─── Usage Mock Data ──────────────────────────────────────────────────────────
-// Cycles — hours already accumulated in the current maintenance cycle
-// FRS-001: 26/30h = 87% → WARNING
-// TRN-002: 15/40h = 37.5% → normal
-// PRS-003: 21/20h = 105% → CRITICAL
-// SLD-004: 30/50h = 60% → normal
-// CMP-005: 22/25h = 88% → WARNING
-// RCT-006: 10/60h = 17% → normal
-const initialUsageCycles: UsageCycle[] = [
-  { machineId: "m1", horasAcumuladas: 26, iniciadoEn: "2026-06-27T08:00:00Z", ultimoReset: "2026-06-27T08:00:00Z" },
-  { machineId: "m2", horasAcumuladas: 15, iniciadoEn: "2026-06-25T09:00:00Z", ultimoReset: "2026-06-25T09:00:00Z" },
-  { machineId: "m3", horasAcumuladas: 21, iniciadoEn: "2026-06-30T08:00:00Z", ultimoReset: "2026-06-30T08:00:00Z" },
-  { machineId: "m4", horasAcumuladas: 30, iniciadoEn: "2026-06-21T08:00:00Z", ultimoReset: "2026-06-21T08:00:00Z" },
-  { machineId: "m5", horasAcumuladas: 22, iniciadoEn: "2026-06-28T00:00:00Z", ultimoReset: "2026-06-28T00:00:00Z" },
-  { machineId: "m6", horasAcumuladas: 10, iniciadoEn: "2026-06-05T09:00:00Z", ultimoReset: "2026-06-05T09:00:00Z" },
-];
-
-const initialUsageLogs: UsageLog[] = [
-  // FRS-001 — 26h total
-  { id: "ul1", machineId: "m1", startAt: "2026-06-27T08:00", endAt: "2026-06-27T14:00", hours: 6, operador: "Carlos Ruiz", turno: "Mañana", observaciones: "Mecanizado de piezas serie A.", registradoPor: "Carlos Ruiz" },
-  { id: "ul2", machineId: "m1", startAt: "2026-06-28T08:00", endAt: "2026-06-28T14:00", hours: 6, operador: "Carlos Ruiz", turno: "Mañana", registradoPor: "Carlos Ruiz" },
-  { id: "ul3", machineId: "m1", startAt: "2026-06-30T08:00", endAt: "2026-06-30T14:00", hours: 6, operador: "Juan Pérez", turno: "Mañana", registradoPor: "Juan Pérez" },
-  { id: "ul4", machineId: "m1", startAt: "2026-07-01T08:00", endAt: "2026-07-01T12:00", hours: 4, operador: "Juan Pérez", turno: "Mañana", registradoPor: "Juan Pérez" },
-  { id: "ul5", machineId: "m1", startAt: "2026-07-03T08:00", endAt: "2026-07-03T12:00", hours: 4, operador: "Carlos Ruiz", turno: "Mañana", registradoPor: "J. Mendoza" },
-  // TRN-002 — 15h total
-  { id: "ul6", machineId: "m2", startAt: "2026-06-25T09:00", endAt: "2026-06-25T17:00", hours: 8, operador: "María López", turno: "Mañana", registradoPor: "María López" },
-  { id: "ul7", machineId: "m2", startAt: "2026-06-26T09:00", endAt: "2026-06-26T16:00", hours: 7, operador: "María López", turno: "Mañana", registradoPor: "María López" },
-  // PRS-003 — 21h total (CRITICAL: > 20h threshold)
-  { id: "ul8", machineId: "m3", startAt: "2026-06-30T08:00", endAt: "2026-06-30T16:00", hours: 8, operador: "Ana Torres", turno: "Mañana", registradoPor: "Ana Torres" },
-  { id: "ul9", machineId: "m3", startAt: "2026-07-01T08:00", endAt: "2026-07-01T16:00", hours: 8, operador: "Ana Torres", turno: "Mañana", observaciones: "Producción de lotes B y C.", registradoPor: "Ana Torres" },
-  { id: "ul10", machineId: "m3", startAt: "2026-07-02T08:00", endAt: "2026-07-02T13:00", hours: 5, operador: "Ana Torres", turno: "Mañana", registradoPor: "J. Mendoza" },
-  // SLD-004 — 30h total
-  { id: "ul11", machineId: "m4", startAt: "2026-06-21T08:00", endAt: "2026-06-21T14:00", hours: 6, operador: "Ana Torres", turno: "Mañana", registradoPor: "Ana Torres" },
-  { id: "ul12", machineId: "m4", startAt: "2026-06-23T08:00", endAt: "2026-06-23T16:00", hours: 8, operador: "Ana Torres", turno: "Mañana", registradoPor: "Ana Torres" },
-  { id: "ul13", machineId: "m4", startAt: "2026-06-25T08:00", endAt: "2026-06-25T14:00", hours: 6, operador: "Ana Torres", turno: "Mañana", registradoPor: "Ana Torres" },
-  { id: "ul14", machineId: "m4", startAt: "2026-06-27T08:00", endAt: "2026-06-27T18:00", hours: 10, operador: "Ana Torres", turno: "Mañana", observaciones: "Soldadura de estructura principal.", registradoPor: "Ana Torres" },
-  // CMP-005 — 22h total (WARNING: > 25*0.8=20h)
-  { id: "ul15", machineId: "m5", startAt: "2026-06-28T00:00", endAt: "2026-06-28T10:00", hours: 10, operador: "Carlos Ruiz", turno: "Noche", registradoPor: "Carlos Ruiz" },
-  { id: "ul16", machineId: "m5", startAt: "2026-07-01T00:00", endAt: "2026-07-01T12:00", hours: 12, operador: "Carlos Ruiz", turno: "Noche", registradoPor: "Carlos Ruiz" },
-  // RCT-006 — 10h total
-  { id: "ul17", machineId: "m6", startAt: "2026-06-05T09:00", endAt: "2026-06-05T14:00", hours: 5, operador: "Juan Pérez", turno: "Mañana", registradoPor: "Juan Pérez" },
-  { id: "ul18", machineId: "m6", startAt: "2026-06-12T09:00", endAt: "2026-06-12T14:00", hours: 5, operador: "Juan Pérez", turno: "Mañana", registradoPor: "Juan Pérez" },
-];
-
-// Pre-seeded notifications — visible on first render
-const initialNotifications: AppNotification[] = [
-  {
-    id: "n-critical-m3",
-    type: "critical",
-    machineId: "m3",
-    title: "⚠ MANTENIMIENTO REQUERIDO — PRS-003",
-    message: "La Prensa Hidráulica P-200 ha superado su límite de operación (21h / 20h). Requiere mantenimiento inmediato. Última OTM: hace 9 días.",
-    createdAt: "2026-07-04T11:00:00Z",
-    read: false,
-    actionType: "create-urgent-otm",
-  },
-  {
-    id: "n-warning-m1",
-    type: "warning",
-    machineId: "m1",
-    title: "Mantenimiento próximo — FRS-001",
-    message: "La Fresadora/Taladro-Fresadora ha alcanzado el 87% de su ciclo de uso. Horas actuales: 26h de 30h. Programar mantenimiento preventivo.",
-    createdAt: "2026-07-04T09:00:00Z",
-    read: false,
-    actionType: "schedule-otm",
-  },
-  {
-    id: "n-warning-m5",
-    type: "warning",
-    machineId: "m5",
-    title: "Mantenimiento próximo — CMP-005",
-    message: "El Compresor Industrial CI-75 ha alcanzado el 88% de su ciclo de uso. Horas actuales: 22h de 25h. Programar mantenimiento preventivo.",
-    createdAt: "2026-07-04T07:00:00Z",
-    read: false,
-    actionType: "schedule-otm",
-  },
-  {
-    id: "n-reminder-m3-days",
-    type: "reminder",
-    machineId: "m3",
-    title: "Recordatorio de mantenimiento — PRS-003",
-    message: "Han pasado más de 4 días desde el último mantenimiento de la Prensa Hidráulica P-200. Límite configurado: 5 días.",
-    createdAt: "2026-07-04T06:00:00Z",
-    read: true,
-    actionType: "view-history",
-  },
-];
-
-// ─── Alert Status Helpers ──────────────────────────────────────────────────────
-export function getMachineAlertStatus(
-  cycle: UsageCycle | undefined,
-  threshold: MachineThreshold | undefined,
-): AlertStatus {
-  if (!cycle || !threshold || threshold.horasCiclo <= 0) return "normal";
-  const pct = (cycle.horasAcumuladas / threshold.horasCiclo) * 100;
-  if (pct >= 100) return "critical";
-  if (pct >= threshold.alertaPct) return "warning";
-  return "normal";
-}
-
-export function getMachineUsagePct(
-  cycle: UsageCycle | undefined,
-  threshold: MachineThreshold | undefined,
-): number {
-  if (!cycle || !threshold || threshold.horasCiclo <= 0) return 0;
-  return Math.round((cycle.horasAcumuladas / threshold.horasCiclo) * 100);
-}
-
-// ─── Provider ─────────────────────────────────────────────────────────────────
 export function MantePoProvider({ children }: { children: ReactNode }) {
-  const [machines, setMachines] = useState(initialMachines);
-  const [types, setTypes] = useState(initialTypes);
-  const [records, setRecords] = useState(initialRecords);
-  const [workshops, setWorkshops] = useState(initialWorkshops);
-  const [sheets] = useState(initialSheets);
-  const [workshopRecords, setWorkshopRecords] = useState(initialWorkshopRecords);
-  const [spareParts, setSpareParts] = useState(initialSpareParts);
-  const [technicians, setTechnicians] = useState(initialTechnicians);
-  const [settings, setSettings] = useState(initialSettings);
+  const [machines, setMachines] = useState<Machine[]>(initialMachines);
+  const [types, setTypes] = useState<MaintenanceType[]>(initialTypes);
+  const [records, setRecords] = useState<MaintenanceRecord[]>(initialRecords);
+  const [workshops, setWorkshops] = useState<Workshop[]>(initialWorkshops);
+  const [sheets, setSheets] = useState<TechSheet[]>(initialSheets);
+  const [workshopRecords, setWorkshopRecords] = useState<WorkshopRecord[]>(initialWorkshopRecords);
+  const [spareParts, setSpareParts] = useState<SparePart[]>(initialSpareParts);
+  const [technicians, setTechnicians] = useState<Technician[]>(initialTechnicians);
+  const [settings, setSettings] = useState<AppSettings>(initialSettings);
   const [usageLogs, setUsageLogs] = useState<UsageLog[]>(initialUsageLogs);
   const [usageCycles, setUsageCycles] = useState<UsageCycle[]>(initialUsageCycles);
   const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
+  
+  const [loading, setLoading] = useState(true);
 
-  const value: State = {
-    machines, types, records, workshops, sheets,
-    workshopRecords, spareParts, technicians, settings,
-    usageLogs, usageCycles, notifications,
-
-    // ── Machine CRUD ──
-    addMachine: (m) => setMachines((x) => [...x, { ...m, id: uid() }]),
-    updateMachine: (id, patch) => setMachines((x) => x.map((m) => (m.id === id ? { ...m, ...patch } : m))),
-    deleteMachine: (id) => setMachines((x) => x.filter((m) => m.id !== id)),
-
-    // ── Record CRUD (intercept Completado → cycle reset) ──
-    addRecord: (r) => { const id = uid(); setRecords((x) => [{ ...r, id }, ...x]); return id; },
-    updateRecord: (id, patch) => {
-      setRecords((x) => x.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-      // Auto-reset cycle when OTM is completed
-      if (patch.status === "Completado") {
-        const record = records.find((r) => r.id === id);
-        if (record) {
-          const machine = machines.find((m) => m.id === record.machineId);
-          const now = new Date().toISOString();
-          setUsageCycles((cycles) =>
-            cycles.map((c) =>
-              c.machineId === record.machineId
-                ? { ...c, horasAcumuladas: 0, ultimoReset: now, otmRef: record.otm }
-                : c,
-            ),
-          );
-          if (machine) {
-            setNotifications((n) => [
-              {
-                id: uid(),
-                type: "reset",
-                machineId: record.machineId,
-                title: `Ciclo reiniciado — ${machine.code}`,
-                message: `Mantenimiento completado. El contador de uso de ${machine.name} fue reiniciado. Nuevo ciclo iniciado.`,
-                createdAt: now,
-                read: false,
-              },
-              ...n,
-            ]);
+  // FETCH DATA FROM SUPABASE
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      // Fetch Machines
+      const { data: mData } = await supabase.from('maquinas').select('*, areas(nombre), uso_ciclos(*), componentes_criticos(*), documentos(*)');
+      if (mData) {
+        setMachines(mData.map((m: any) => ({
+          id: m.id, code: m.codigo, patrimonialCode: m.codigo_patrimonial, name: m.nombre,
+          brand: m.marca || '', model: m.modelo || '', serial: m.numero_serie,
+          purchaseDate: m.created_at, manufactureYear: m.anio_fabricacion, acquisitionYear: m.anio_adquisicion,
+          cost: m.costo, area: m.areas?.nombre, department: '', powerKw: m.potencia_kw, voltageV: m.voltaje_v,
+          frequencyHz: m.frecuencia_hz, weightKg: m.peso_kg, status: m.estado, criticality: m.criticidad,
+          observations: m.observaciones, photo: m.foto_url, location: '', acquiredAt: m.created_at,
+          hoursOfUse: m.uso_ciclos?.length > 0 ? m.uso_ciclos[0].horas_acumuladas : 0,
+          components: m.componentes_criticos?.map((c: any) => ({
+            id: c.id, name: c.nombre, function: c.funcion || '', state: c.estado, criticality: c.criticidad
+          })) || [],
+          documents: m.documentos?.map((d: any) => ({
+            id: d.id, name: d.nombre_archivo, size: d.tamanio_bytes, mime: d.tipo_mime, dataUrl: d.url,
+            category: d.categoria, description: d.descripcion, uploadedAt: d.uploaded_at, machineId: d.maquina_id
+          })) || [],
+          threshold: {
+            horasCiclo: m.umbral_horas_ciclo,
+            diasMaximos: m.umbral_dias_maximos,
+            alertaPct: m.umbral_alerta_pct,
+            turno: m.turno_operacion,
+            diasOperacion: [], tiposIds: [], operadoresIds: []
           }
-        }
+        })));
       }
-    },
-    deleteRecord: (id) => setRecords((x) => x.filter((r) => r.id !== id)),
 
-    // ── Type CRUD ──
-    addType: (t) => setTypes((x) => [...x, { ...t, id: uid() }]),
-    updateType: (id, patch) => setTypes((x) => x.map((t) => (t.id === id ? { ...t, ...patch } : t))),
-    deleteType: (id) => setTypes((x) => x.filter((t) => t.id !== id)),
+      // Fetch Types
+      const { data: tData } = await supabase.from('tipos_mantenimiento').select('*, actividades_tipo(*)');
+      if (tData) {
+        setTypes(tData.map((t: any) => ({
+          id: t.id, name: t.nombre, description: t.descripcion || '', color: t.color || '#ccc',
+          frequency: t.frecuencia, frequencyDays: 0, estimatedHours: t.duracion_min / 60,
+          active: t.activo, category: 'Preventivo',
+          activities: t.actividades_tipo?.map((a: any) => ({
+            id: a.id, text: a.descripcion, durationMin: a.duracion_min, role: a.responsable || 'Técnico'
+          })) || []
+        })));
+      }
 
-    // ── Workshop CRUD ──
-    addWorkshop: (w) => setWorkshops((x) => [...x, { ...w, id: uid() }]),
-    updateWorkshop: (id, patch) => setWorkshops((x) => x.map((w) => (w.id === id ? { ...w, ...patch } : w))),
-    deleteWorkshop: (id) => setWorkshops((x) => x.filter((w) => w.id !== id)),
+      // Fetch OTMs
+      const { data: oData } = await supabase.from('ordenes_trabajo').select('*, maquinas(nombre), actividades_otm(*), repuestos_otm(*), tecnico:usuarios!tecnico_id(nombre), supervisor:usuarios!supervisor_id(nombre)');
+      if (oData) {
+        setRecords(oData.map((o: any) => ({
+          id: o.id, otm: o.numero_otm, machineId: o.maquina_id, typeId: o.tipo_id || '',
+          date: o.fecha_programada || o.created_at, startTime: o.hora_inicio, endTime: o.hora_fin,
+          technician: o.tecnico?.nombre || '', supervisor: o.supervisor?.nombre || '', status: o.estado, notes: o.hallazgos || '',
+          activities: o.actividades_otm?.map((a: any) => ({ id: a.id, text: a.descripcion, done: a.completada, observations: a.observaciones })) || [],
+          parts: o.repuestos_otm?.map((p: any) => ({ id: p.id, name: p.nombre, quantity: p.cantidad, unitCost: p.costo_unitario })) || [],
+          laborCost: o.costo_mano_obra || 0, cost: o.costo_repuestos || 0,
+          postState: o.estado_post_maquina, nextDate: o.proximo_mantenimiento
+        })));
+      }
 
-    upsertComponent: (machineId, c) => setMachines((x) => x.map((m) => {
-      if (m.id !== machineId) return m;
-      const exists = m.components.some((k) => k.id === c.id);
-      const components = exists ? m.components.map((k) => (k.id === c.id ? c : k)) : [...m.components, c];
-      return { ...m, components, sheetUpdatedAt: todayISO() };
-    })),
-    deleteComponent: (machineId, componentId) => setMachines((x) => x.map((m) =>
-      m.id === machineId ? { ...m, components: m.components.filter((c) => c.id !== componentId), sheetUpdatedAt: todayISO() } : m,
-    )),
-    addMachineDocuments: (machineId, docs) => setMachines((x) => x.map((m) =>
-      m.id === machineId ? { ...m, documents: [...(m.documents ?? []), ...docs] } : m,
-    )),
-    removeMachineDocument: (machineId, docId) => setMachines((x) => x.map((m) =>
-      m.id === machineId ? { ...m, documents: (m.documents ?? []).filter((d) => d.id !== docId) } : m,
-    )),
-    addWorkshopRecord: (r) => {
-      const id = uid();
-      setWorkshopRecords((x) => [{ ...r, id }, ...x]);
-      setMachines((x) => x.map((m) => (m.id === r.machineId ? { ...m, status: "En Taller" } : m)));
-      return id;
-    },
-    updateWorkshopRecord: (id, patch) => setWorkshopRecords((x) => x.map((r) => {
-      if (r.id !== id) return r;
-      const next = { ...r, ...patch };
-      if (patch.status && patch.status !== r.status) {
-        setMachines((ms) => ms.map((m) => {
-          if (m.id !== r.machineId) return m;
-          if (patch.status === "Devuelto") return { ...m, status: "Operativo" };
-          if (patch.status === "Cancelado") return { ...m, status: "Operativo" };
-          if (patch.status === "En Taller") return { ...m, status: "En Taller" };
-          return m;
+      // Fetch Notifications
+      const { data: nData } = await supabase.from('notificaciones').select('*').order('created_at', { ascending: false });
+      if (nData) {
+        setNotifications(nData.map((n: any) => ({
+          id: n.id, type: n.tipo, machineId: n.maquina_id || '', title: n.titulo,
+          message: n.mensaje, createdAt: n.created_at, read: n.leida, actionType: n.accion_tipo
+        })));
+      }
+
+      
+      
+      
+      // Fetch Institution Settings
+      const { data: instData } = await supabase.from('instituciones').select('*').limit(1).maybeSingle();
+      if (instData) {
+        setSettings(prev => ({
+          ...prev,
+          institutionName: instData.nombre || prev.institutionName,
+          institutionLogo: instData.logo_url || prev.institutionLogo
         }));
       }
-      return next;
-    })),
-    deleteWorkshopRecord: (id) => setWorkshopRecords((x) => x.filter((r) => r.id !== id)),
-    addWorkshopLog: (id, note, status) => setWorkshopRecords((x) => x.map((r) =>
-      r.id === id ? { ...r, status: status ?? r.status, logs: [...r.logs, { id: uid(), at: new Date().toISOString(), note, status }] } : r,
-    )),
-    addDocumentsToWorkshop: (id, docs) => setWorkshopRecords((x) => x.map((r) =>
-      r.id === id ? { ...r, documents: [...r.documents, ...docs] } : r,
-    )),
-    removeDocumentFromWorkshop: (id, docId) => setWorkshopRecords((x) => x.map((r) =>
-      r.id === id ? { ...r, documents: r.documents.filter((d) => d.id !== docId) } : r,
-    )),
 
-    addSparePart: (p) => setSpareParts((x) => [...x, { ...p, id: uid() }]),
-    updateSparePart: (id, patch) => setSpareParts((x) => x.map((p) => (p.id === id ? { ...p, ...patch } : p))),
-    deleteSparePart: (id) => setSpareParts((x) => x.filter((p) => p.id !== id)),
-    addTechnician: (t) => setTechnicians((x) => [...x, { ...t, id: uid() }]),
-    updateTechnician: (id, patch) => setTechnicians((x) => x.map((t) => (t.id === id ? { ...t, ...patch } : t))),
-    deleteTechnician: (id) => setTechnicians((x) => x.filter((t) => t.id !== id)),
-    updateSettings: (s) => setSettings((x) => ({ ...x, ...s })),
-    allDocuments: () => workshopRecords.flatMap((r) => r.documents.map((d) => ({ ...d, workshopRecordId: r.id, machineId: r.machineId }))),
-
-    // ── Usage Tracking ──
-    addUsageLog: (log) => {
-      const newLog: UsageLog = { ...log, id: uid() };
-      setUsageLogs((x) => [newLog, ...x]);
-
-      // Find machine and threshold from current closure
-      const machine = machines.find((m) => m.id === log.machineId);
-      const threshold = machine?.threshold;
-      const currentCycle = usageCycles.find((c) => c.machineId === log.machineId);
-
-      if (threshold) {
-        const prevHours = currentCycle?.horasAcumuladas ?? 0;
-        const newHours = prevHours + log.hours;
-        const prevPct = threshold.horasCiclo > 0 ? (prevHours / threshold.horasCiclo) * 100 : 0;
-        const newPct = threshold.horasCiclo > 0 ? (newHours / threshold.horasCiclo) * 100 : 0;
-
-        if (currentCycle) {
-          setUsageCycles((cycles) =>
-            cycles.map((c) =>
-              c.machineId === log.machineId ? { ...c, horasAcumuladas: newHours } : c,
-            ),
-          );
-        } else {
-          setUsageCycles((cycles) => [
-            ...cycles,
-            { machineId: log.machineId, horasAcumuladas: newHours, iniciadoEn: log.startAt, ultimoReset: log.startAt },
-          ]);
-        }
-
-        // Fire notifications on threshold crossing
-        const now = new Date().toISOString();
-        if (machine && newPct >= 100 && prevPct < 100) {
-          setNotifications((n) => [
-            {
-              id: uid(),
-              type: "critical",
-              machineId: log.machineId,
-              title: `⚠ MANTENIMIENTO REQUERIDO — ${machine.code}`,
-              message: `La ${machine.name} ha superado su límite de operación (${newHours.toFixed(1)}h / ${threshold.horasCiclo}h). Requiere mantenimiento inmediato.`,
-              createdAt: now,
-              read: false,
-              actionType: "create-urgent-otm",
-            },
-            ...n,
-          ]);
-        } else if (machine && newPct >= threshold.alertaPct && prevPct < threshold.alertaPct) {
-          setNotifications((n) => [
-            {
-              id: uid(),
-              type: "warning",
-              machineId: log.machineId,
-              title: `Mantenimiento próximo — ${machine.code}`,
-              message: `La ${machine.name} ha alcanzado el ${Math.round(newPct)}% de su ciclo de uso. Horas actuales: ${newHours.toFixed(1)}h de ${threshold.horasCiclo}h. Programar mantenimiento preventivo.`,
-              createdAt: now,
-              read: false,
-              actionType: "schedule-otm",
-            },
-            ...n,
-          ]);
-        }
+      // Fetch Users
+      const { data: uData } = await supabase.from('usuarios').select('*').eq('activo', true);
+      if (uData) {
+        setTechnicians(uData.map((u: any) => ({
+          id: u.id, name: u.nombre, email: u.email, role: u.rol, area: u.area || ''
+        })));
       }
-    },
+      
+      // Fetch Parts
+      const { data: pData } = await supabase.from('repuestos_catalogo').select('*');
+      if (pData) {
+        setSpareParts(pData.map((p: any) => ({
+          id: p.id, name: p.nombre, reference: p.referencia || '', supplier: p.proveedor || '', price: p.precio || 0, stock: p.stock_minimo || 0
+        })));
+      }
 
-    resetCycle: (machineId, otmRef) => {
-      const machine = machines.find((m) => m.id === machineId);
-      const now = new Date().toISOString();
-      setUsageCycles((cycles) =>
-        cycles.map((c) =>
-          c.machineId === machineId
-            ? { ...c, horasAcumuladas: 0, ultimoReset: now, otmRef }
-            : c,
-        ),
+      // Fetch Workshops
+      const { data: wData } = await supabase.from('talleres_externos').select('*').eq('activo', true);
+      if (wData) {
+        setWorkshops(wData.map((w: any) => ({
+          id: w.id, name: w.nombre, address: w.direccion || '', contact: w.contacto || '', phone: w.telefono || '', specialty: w.direccion || '', machinesInService: 0
+        })));
+      }
+
+      // Fetch Usage Logs
+      const { data: ulData } = await supabase.from('uso_logs').select('*').order('start_at', { ascending: false });
+      if (ulData) {
+        setUsageLogs(ulData.map((u: any) => ({
+          id: u.id, machineId: u.maquina_id, startAt: u.start_at, endAt: u.end_at, hours: u.horas,
+          operador: u.operador, turno: u.turno, observaciones: u.observaciones, registradoPor: "ING. JOHNNY BRYNNER VILCHEZ MIRANDA"
+        })));
+      }
+
+      // Fetch Usage Cycles
+      const { data: ucData } = await supabase.from('uso_ciclos').select('*');
+      if (ucData) {
+        setUsageCycles(ucData.map((u: any) => ({
+          machineId: u.maquina_id, horasAcumuladas: u.horas_acumuladas, iniciadoEn: u.start_at || new Date().toISOString(), ultimoReset: u.ultimo_reset || new Date().toISOString(), otmRef: u.otm_ref
+        })));
+      }
+
+    } catch(err) {
+      console.error(err);
+      toast.error("Error al cargar datos. Intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllData();
+
+    // REAL-TIME SUBSCRIPTIONS (STEP 9)
+    const channel = supabase.channel('public_schema')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'uso_ciclos' }, (payload) => {
+         fetchAllData();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificaciones' }, (payload) => {
+         fetchAllData();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ordenes_trabajo' }, (payload) => {
+         if(payload.new.estado === 'Completado') {
+           fetchAllData();
+         }
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const addMachine = async (m: Omit<Machine, "id">) => {
+    let finalPhotoUrl = m.photo;
+    
+    if (m.photo && m.photo.startsWith('data:image')) {
+      try {
+        const res = await fetch(m.photo);
+        const blob = await res.blob();
+        const fileName = `${m.code}-${Date.now()}.jpg`;
+        const { data, error } = await supabase.storage.from('maquinas-fotos').upload(fileName, blob, {
+          upsert: true
+        });
+        if (data) {
+          const { data: { publicUrl } } = supabase.storage.from('maquinas-fotos').getPublicUrl(fileName);
+          finalPhotoUrl = publicUrl;
+        }
+      } catch(e) { console.error("Error uploading image", e); }
+    }
+
+    // Try to resolve area_id if a location/area string is provided
+    let area_id = null;
+    let institucion_id = null;
+    try {
+        // get institucion_id from any existing machine
+        const { data: firstMachine } = await supabase.from('maquinas').select('institucion_id').limit(1).single();
+        if (firstMachine) institucion_id = firstMachine.institucion_id;
+        
+        const uiArea = m.location || m.area;
+        if (uiArea && institucion_id) {
+            const { data: existingArea } = await supabase.from('areas').select('id').eq('nombre', uiArea).eq('institucion_id', institucion_id).maybeSingle();
+            if (existingArea) {
+                area_id = existingArea.id;
+            } else {
+                const { data: newArea } = await supabase.from('areas').insert({ nombre: uiArea, institucion_id }).select().single();
+                if (newArea) area_id = newArea.id;
+            }
+        }
+    } catch(err) {
+        console.error("Error resolving area_id", err);
+    }
+
+    const payload: any = {
+      nombre: m.name,
+      codigo: m.code,
+      codigo_patrimonial: m.patrimonialCode,
+      marca: m.brand,
+      modelo: m.model,
+      numero_serie: m.serial,
+      estado: m.status,
+      criticidad: m.criticality,
+      observaciones: m.observations,
+      foto_url: finalPhotoUrl,
+      costo: m.cost,
+      potencia_kw: m.powerKw,
+      voltaje_v: m.voltageV,
+      peso_kg: m.weightKg,
+      frecuencia_hz: m.frequencyHz,
+      anio_fabricacion: m.manufactureYear || null,
+      anio_adquisicion: m.acquisitionYear || null,
+      area_id: area_id,
+      institucion_id: institucion_id,
+      umbral_horas_ciclo: m.threshold?.horasCiclo || 30,
+      umbral_dias_maximos: m.threshold?.diasMaximos || 30,
+      umbral_alerta_pct: m.threshold?.alertaPct || 80,
+      turno_operacion: m.threshold?.turno || 'Variable'
+    };
+
+    const { error } = await supabase.from('maquinas').insert(payload);
+    if (error) {
+      console.error("Error inserting machine:", error);
+      toast.error("Error al registrar máquina: " + error.message);
+    } else {
+      toast.success("Máquina registrada exitosamente");
+      fetchAllData();
+    }
+  };
+  const updateMachine = async (id: string, m: Partial<Machine>) => {
+    let finalPhotoUrl = m.photo;
+    if (m.photo && m.photo.startsWith('data:image')) {
+      try {
+        const res = await fetch(m.photo);
+        const blob = await res.blob();
+        const fileName = `${id}-${Date.now()}.jpg`;
+        const { data, error } = await supabase.storage.from('maquinas-fotos').upload(fileName, blob, { upsert: true });
+        if (data) {
+          const { data: { publicUrl } } = supabase.storage.from('maquinas-fotos').getPublicUrl(fileName);
+          finalPhotoUrl = publicUrl;
+        }
+      } catch(e) {}
+    }
+    const payload: any = {};
+    if (m.name !== undefined) payload.nombre = m.name;
+    if (m.code !== undefined) payload.codigo = m.code;
+    if (m.patrimonialCode !== undefined) payload.codigo_patrimonial = m.patrimonialCode;
+    if (m.brand !== undefined) payload.marca = m.brand;
+    if (m.model !== undefined) payload.modelo = m.model;
+    if (m.serial !== undefined) payload.numero_serie = m.serial;
+    if (m.status !== undefined) payload.estado = m.status;
+    if (m.criticality !== undefined) payload.criticidad = m.criticality;
+    if (m.observations !== undefined) payload.observaciones = m.observations;
+    if (finalPhotoUrl !== undefined) payload.foto_url = finalPhotoUrl;
+    if (m.cost !== undefined) payload.costo = m.cost;
+    if (m.powerKw !== undefined) payload.potencia_kw = m.powerKw;
+    if (m.voltageV !== undefined) payload.voltaje_v = m.voltageV;
+    if (m.weightKg !== undefined) payload.peso_kg = m.weightKg;
+    if (m.frequencyHz !== undefined) payload.frecuencia_hz = m.frequencyHz;
+    if (m.manufactureYear !== undefined) payload.anio_fabricacion = m.manufactureYear;
+    if (m.acquisitionYear !== undefined) payload.anio_adquisicion = m.acquisitionYear;
+
+    if (m.threshold) {
+        if (m.threshold.horasCiclo) payload.umbral_horas_ciclo = m.threshold.horasCiclo;
+        if (m.threshold.diasMaximos) payload.umbral_dias_maximos = m.threshold.diasMaximos;
+        if (m.threshold.alertaPct) payload.umbral_alerta_pct = m.threshold.alertaPct;
+        if (m.threshold.turno) payload.turno_operacion = m.threshold.turno;
+    }
+
+    if (m.location !== undefined || m.area !== undefined) {
+        let area_id = null;
+        try {
+            const { data: firstMachine } = await supabase.from('maquinas').select('institucion_id').limit(1).single();
+            const uiArea = m.location || m.area;
+            if (uiArea && firstMachine?.institucion_id) {
+                const { data: existingArea } = await supabase.from('areas').select('id').eq('nombre', uiArea).eq('institucion_id', firstMachine.institucion_id).maybeSingle();
+                if (existingArea) {
+                    area_id = existingArea.id;
+                } else {
+                    const { data: newArea } = await supabase.from('areas').insert({ nombre: uiArea, institucion_id: firstMachine.institucion_id }).select().single();
+                    if (newArea) area_id = newArea.id;
+                }
+            }
+        } catch(e) {}
+        if (area_id) payload.area_id = area_id;
+    }
+
+    await supabase.from('maquinas').update(payload).eq('id', id);
+    fetchAllData();
+  };
+  const deleteMachine = (id: string) => { fetchAllData(); };
+
+  const addRecord = async (r: Omit<MaintenanceRecord, "id">) => {
+    let tecnico_id = null;
+    let supervisor_id = null;
+    if (r.technician) {
+       const {data} = await supabase.from('usuarios').select('id').eq('nombre', r.technician).maybeSingle();
+       if (data) tecnico_id = data.id;
+    }
+    if (r.supervisor) {
+       const {data} = await supabase.from('usuarios').select('id').eq('nombre', r.supervisor).maybeSingle();
+       if (data) supervisor_id = data.id;
+    }
+    
+    const { data: orden, error } = await supabase.from('ordenes_trabajo').insert({
+      numero_otm: r.otm, 
+      maquina_id: r.machineId, 
+      tipo_id: r.typeId || null,
+      estado: r.status, 
+      fecha_programada: r.date,
+      hora_inicio: r.startTime || null,
+      hora_fin: r.endTime || null,
+      tecnico_id,
+      supervisor_id,
+      hallazgos: r.notes || '',
+      costo_repuestos: r.cost || 0,
+      costo_mano_obra: r.laborCost || 0
+    }).select().single();
+
+    if (error || !orden) {
+      console.error("Error creating record", error);
+      return r.otm;
+    }
+
+    if (r.activities && r.activities.length > 0) {
+      await supabase.from('actividades_otm').insert(
+         r.activities.map((a, i) => ({
+            orden_id: orden.id,
+            descripcion: a.text,
+            completada: a.done,
+            observaciones: a.observations,
+            orden: i
+         }))
       );
-      if (machine) {
-        setNotifications((n) => [
-          {
-            id: uid(),
-            type: "reset",
-            machineId,
-            title: `Ciclo reiniciado — ${machine.code}`,
-            message: `Mantenimiento completado. El contador de uso de ${machine.name} fue reiniciado. Nuevo ciclo iniciado.`,
-            createdAt: now,
-            read: false,
-          },
-          ...n,
-        ]);
-      }
-    },
+    }
 
-    // ── Notifications ──
-    markNotificationRead: (id) =>
-      setNotifications((n) => n.map((x) => (x.id === id ? { ...x, read: true } : x))),
-    markAllRead: () =>
-      setNotifications((n) => n.map((x) => ({ ...x, read: true }))),
-    deleteNotification: (id) =>
-      setNotifications((n) => n.filter((x) => x.id !== id)),
+    if (r.parts && r.parts.length > 0) {
+      await supabase.from('repuestos_otm').insert(
+         r.parts.map(p => ({
+            orden_id: orden.id,
+            nombre: p.name,
+            cantidad: p.quantity,
+            costo_unitario: p.unitCost
+         }))
+      );
+    }
+
+    fetchAllData();
+    return r.otm;
+  };
+  const updateRecord = async (id: string, r: Partial<MaintenanceRecord>) => {
+    let payload: any = {};
+    if (r.otm !== undefined) payload.numero_otm = r.otm;
+    if (r.machineId !== undefined) payload.maquina_id = r.machineId;
+    if (r.typeId !== undefined) payload.tipo_id = r.typeId || null;
+    if (r.status !== undefined) payload.estado = r.status;
+    if (r.date !== undefined) payload.fecha_programada = r.date;
+    if (r.startTime !== undefined) payload.hora_inicio = r.startTime || null;
+    if (r.endTime !== undefined) payload.hora_fin = r.endTime || null;
+    if (r.notes !== undefined) payload.hallazgos = r.notes;
+    if (r.cost !== undefined) payload.costo_repuestos = r.cost;
+    if (r.laborCost !== undefined) payload.costo_mano_obra = r.laborCost;
+
+    if (r.technician !== undefined) {
+        payload.tecnico_id = null;
+        if (r.technician) {
+            const {data} = await supabase.from('usuarios').select('id').eq('nombre', r.technician).maybeSingle();
+            if (data) payload.tecnico_id = data.id;
+        }
+    }
+    if (r.supervisor !== undefined) {
+        payload.supervisor_id = null;
+        if (r.supervisor) {
+            const {data} = await supabase.from('usuarios').select('id').eq('nombre', r.supervisor).maybeSingle();
+            if (data) payload.supervisor_id = data.id;
+        }
+    }
+
+    await supabase.from('ordenes_trabajo').update(payload).eq('id', id);
+
+    if (r.activities !== undefined) {
+        await supabase.from('actividades_otm').delete().eq('orden_id', id);
+        if (r.activities.length > 0) {
+            await supabase.from('actividades_otm').insert(
+                r.activities.map((a, i) => ({
+                    orden_id: id,
+                    descripcion: a.text,
+                    completada: a.done,
+                    observaciones: a.observations,
+                    orden: i
+                }))
+            );
+        }
+    }
+
+    if (r.parts !== undefined) {
+        await supabase.from('repuestos_otm').delete().eq('orden_id', id);
+        if (r.parts.length > 0) {
+            await supabase.from('repuestos_otm').insert(
+                r.parts.map(p => ({
+                    orden_id: id,
+                    nombre: p.name,
+                    cantidad: p.quantity,
+                    costo_unitario: p.unitCost
+                }))
+            );
+        }
+    }
+
+    fetchAllData();
+};
+  const deleteRecord = (id: string) => { fetchAllData(); };
+
+  const addType = (t: Omit<MaintenanceType, "id">) => {};
+  const updateType = (id: string, t: Partial<MaintenanceType>) => {};
+  const deleteType = (id: string) => {};
+
+  const addWorkshop = async (w: Omit<Workshop, "id">) => {
+    let institucion_id = null;
+    const { data: m } = await supabase.from('maquinas').select('institucion_id').limit(1).maybeSingle();
+    if (m) institucion_id = m.institucion_id;
+    
+    await supabase.from('talleres_externos').insert({
+      institucion_id,
+      nombre: w.name,
+      contacto: w.contact,
+      telefono: w.phone,
+      direccion: w.specialty,
+      activo: true
+    });
+    fetchAllData();
+  };
+  const updateWorkshop = async (id: string, w: Partial<Workshop>) => {
+    let payload: any = {};
+    if (w.name !== undefined) payload.nombre = w.name;
+    if (w.address !== undefined) payload.direccion = w.address;
+    if (w.contact !== undefined) payload.contacto = w.contact;
+    if (w.phone !== undefined) payload.telefono = w.phone;
+    if (w.specialty !== undefined) payload.direccion = w.specialty;
+    
+    await supabase.from('talleres_externos').update(payload).eq('id', id);
+    fetchAllData();
+  };
+  const deleteWorkshop = async (id: string) => {
+    await supabase.from('talleres_externos').update({ activo: false }).eq('id', id);
+    fetchAllData();
+  };
+
+  const upsertComponent = (mId: string, c: CriticalComponent) => {};
+  const deleteComponent = (mId: string, cId: string) => {};
+
+  const addMachineDocuments = async (mId: string, docs: AppDocument[]) => {
+    for (const doc of docs) {
+      let finalUrl = doc.dataUrl;
+      // Upload to Storage if it is a new base64 document
+      if (doc.dataUrl.startsWith('data:')) {
+        try {
+          const res = await fetch(doc.dataUrl);
+          const blob = await res.blob();
+          // generate safe filename
+          const ext = doc.name.split('.').pop() || 'bin';
+          const safeName = doc.name.replace(/[^a-zA-Z0-9]/g, '_');
+          const fileName = `maquina-${mId}-${Date.now()}-${safeName}.${ext}`;
+          
+          const { data: upData, error: upErr } = await supabase.storage.from('documentos-otm').upload(fileName, blob, { upsert: true });
+          if (upData) {
+            const { data: { publicUrl } } = supabase.storage.from('documentos-otm').getPublicUrl(fileName);
+            finalUrl = publicUrl;
+          } else {
+            console.error("Storage upload error", upErr);
+          }
+        } catch(e) {
+          console.error("Error uploading document to storage", e);
+        }
+      }
+
+      // Map category to match DB constraint ('Diagnostico', 'Manual', 'Presupuesto', 'Fotografia', 'Certificado', 'Factura', 'Informe', 'Otro')
+      let cat = doc.category as string;
+      if (cat === "Diagnóstico" || cat === "Diagnóstico previo") cat = "Diagnostico";
+      if (cat === "Fotografía" || cat === "Fotografías del problema") cat = "Fotografia";
+      const validCategories = ["Diagnostico", "Manual", "Presupuesto", "Fotografia", "Certificado", "Factura", "Informe", "Otro"];
+      if (!validCategories.includes(cat)) cat = "Otro";
+
+      const payload = {
+        maquina_id: mId,
+        nombre_archivo: doc.name,
+        url: finalUrl,
+        categoria: cat,
+        tipo_mime: doc.mime,
+        tamanio_bytes: doc.size,
+        descripcion: doc.description || null
+      };
+
+      const { error } = await supabase.from('documentos').insert(payload);
+      if (error) console.error("Error inserting document to DB", error);
+    }
+    fetchAllData();
+  };
+  const removeMachineDocument = async (mId: string, dId: string) => {
+    await supabase.from('documentos').delete().eq('id', dId);
+    fetchAllData();
+  };
+
+  const addWorkshopRecord = (r: Omit<WorkshopRecord, "id">) => "wr1";
+  const updateWorkshopRecord = (id: string, r: Partial<WorkshopRecord>) => {};
+  const deleteWorkshopRecord = (id: string) => {};
+  const addWorkshopLog = (id: string, note: string, s?: WorkshopRecordStatus) => {};
+  const addDocumentsToWorkshop = (id: string, docs: AppDocument[]) => {};
+  const removeDocumentFromWorkshop = (id: string, docId: string) => {};
+
+  const addSparePart = async (p: Omit<SparePart, "id">) => {
+    let institucion_id = null;
+    const { data: m } = await supabase.from('maquinas').select('institucion_id').limit(1).maybeSingle();
+    if (m) institucion_id = m.institucion_id;
+    
+    await supabase.from('repuestos_catalogo').insert({
+      institucion_id,
+      nombre: p.name,
+      referencia: p.reference,
+      proveedor: p.supplier,
+      precio: p.price,
+      stock_minimo: p.stock
+    });
+    fetchAllData();
+  };
+  const updateSparePart = async (id: string, p: Partial<SparePart>) => {
+    let payload: any = {};
+    if (p.name !== undefined) payload.nombre = p.name;
+    if (p.reference !== undefined) payload.referencia = p.reference;
+    if (p.supplier !== undefined) payload.proveedor = p.supplier;
+    if (p.price !== undefined) payload.precio = p.price;
+    if (p.stock !== undefined) payload.stock_minimo = p.stock;
+    await supabase.from('repuestos_catalogo').update(payload).eq('id', id);
+    fetchAllData();
+  };
+  const deleteSparePart = async (id: string) => {
+    await supabase.from('repuestos_catalogo').delete().eq('id', id);
+    fetchAllData();
+  };
+  const addTechnician = async (t: Omit<Technician, "id">) => {
+    let institucion_id = null;
+    const { data: m } = await supabase.from('maquinas').select('institucion_id').limit(1).maybeSingle();
+    if (m) institucion_id = m.institucion_id;
+    
+    await supabase.from('usuarios').insert({
+      institucion_id,
+      nombre: t.name,
+      email: t.email || `${Date.now()}@mantenimiento.com`,
+      rol: t.role || 'Tecnico',
+      area: t.area,
+      activo: true
+    });
+    fetchAllData();
+  };
+  const updateTechnician = async (id: string, t: Partial<Technician>) => {
+    let payload: any = {};
+    if (t.name !== undefined) payload.nombre = t.name;
+    if (t.email !== undefined) payload.email = t.email;
+    if (t.role !== undefined) payload.rol = t.role;
+    if (t.area !== undefined) payload.area = t.area;
+    await supabase.from('usuarios').update(payload).eq('id', id);
+    fetchAllData();
+  };
+  const deleteTechnician = async (id: string) => {
+    await supabase.from('usuarios').update({ activo: false }).eq('id', id);
+    fetchAllData();
+  };
+  const updateSettings = async (s: Partial<AppSettings>) => {
+    // Optimistic update locally
+    setSettings(prev => ({ ...prev, ...s }));
+
+    try {
+      // Get the existing institution to update
+      let { data: inst } = await supabase.from('instituciones').select('id').limit(1).maybeSingle();
+      
+      let finalLogoUrl = s.institutionLogo;
+      
+      // If a new base64 image was passed, upload it
+      if (s.institutionLogo && s.institutionLogo.startsWith('data:image')) {
+        const res = await fetch(s.institutionLogo);
+        const blob = await res.blob();
+        const fileName = `logo-${Date.now()}.${blob.type.split('/')[1] || 'png'}`;
+        
+        const { data: upData, error: upErr } = await supabase.storage.from('maquinas-fotos').upload(fileName, blob, { upsert: true });
+        
+        if (upData) {
+          const { data: { publicUrl } } = supabase.storage.from('maquinas-fotos').getPublicUrl(fileName);
+          finalLogoUrl = publicUrl;
+          setSettings(prev => ({ ...prev, institutionLogo: finalLogoUrl }));
+        }
+      }
+
+      const payload: any = {};
+      if (s.institutionName !== undefined) payload.nombre = s.institutionName;
+      if (finalLogoUrl !== undefined) payload.logo_url = finalLogoUrl;
+
+      if (inst) {
+        // Update existing
+        await supabase.from('instituciones').update(payload).eq('id', inst.id);
+      } else {
+        // Create new
+        if (!payload.nombre) payload.nombre = "Mi Taller";
+        await supabase.from('instituciones').insert(payload);
+      }
+      
+      fetchAllData();
+    } catch(err) {
+      console.error("Error updating settings", err);
+    }
+  };
+  const allDocuments = () => [];
+
+  const addUsageLog = async (log: Omit<UsageLog, "id">) => {
+    // 1. Ensure cycle exists so the DB trigger can update it
+    const { data: cycle } = await supabase.from('uso_ciclos').select('id').eq('maquina_id', log.machineId).maybeSingle();
+    if (!cycle) {
+      await supabase.from('uso_ciclos').insert({ maquina_id: log.machineId, horas_acumuladas: 0 });
+    }
+
+    // 2. Insert log (trigger will automatically add the hours)
+    const { error } = await supabase.from('uso_logs').insert({
+      maquina_id: log.machineId, 
+      start_at: new Date(log.startAt).toISOString(), 
+      end_at: new Date(log.endAt).toISOString(), 
+      horas: log.hours, 
+      turno: log.turno,
+      operador: log.operador, 
+      observaciones: log.observaciones
+    });
+    if (error) {
+      console.error("Error inserting uso_log:", error);
+      return;
+    }
+
+    // 3. Fetch updated cycle to check thresholds
+    const { data: updatedCycle } = await supabase.from('uso_ciclos').select('horas_acumuladas').eq('maquina_id', log.machineId).single();
+    const machine = machines.find((m) => m.id === log.machineId);
+
+    if (machine && machine.threshold && updatedCycle) {
+      const pct = (updatedCycle.horas_acumuladas / machine.threshold.horasCiclo) * 100;
+      
+      let alertType: "critical" | "warning" | null = null;
+      if (pct >= 100) alertType = "critical";
+      else if (pct >= machine.threshold.alertaPct) alertType = "warning";
+
+      if (alertType) {
+        // Check if there is already an unread notification of this type for this machine
+        const existing = notifications.find(n => n.machineId === machine.id && !n.read && n.type === alertType);
+        if (!existing) {
+          const isCrit = alertType === "critical";
+          await supabase.from('notificaciones').insert({
+            maquina_id: machine.id,
+            tipo: alertType,
+            titulo: isCrit ? `Mantenimiento requerido - ${machine.code}` : `Mantenimiento próximo - ${machine.code}`,
+            mensaje: isCrit 
+              ? `La máquina ${machine.name} ha superado su ciclo de uso (${Number(updatedCycle.horas_acumuladas).toFixed(2)}h / ${machine.threshold.horasCiclo}h). Programar mantenimiento correctivo o preventivo urgente.`
+              : `La máquina ${machine.name} ha alcanzado el ${pct.toFixed(1)}% de su ciclo de uso (${Number(updatedCycle.horas_acumuladas).toFixed(2)}h / ${machine.threshold.horasCiclo}h).`,
+            accion_tipo: 'programar_otm'
+          });
+        }
+      }
+    }
+
+    fetchAllData();
+  };
+
+  const clearAllUsageLogs = async () => {
+    await supabase.from('uso_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await supabase.from('uso_ciclos').update({ horas_acumuladas: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
+    fetchAllData();
+  };
+  const resetCycle = (mId: string, otmRef?: string) => {
+    supabase.from('uso_ciclos').update({ horas_acumuladas: 0, ultimo_reset: new Date().toISOString() }).eq('maquina_id', mId)
+    .then(() => fetchAllData());
+  };
+
+  const markNotificationRead = (id: string) => {
+    supabase.from('notificaciones').update({ leida: true }).eq('id', id).then(() => fetchAllData());
+  };
+  const markAllRead = () => {
+    supabase.from('notificaciones').update({ leida: true }).eq('leida', false).then(() => fetchAllData());
+  };
+  const deleteNotification = (id: string) => {
+    supabase.from('notificaciones').delete().eq('id', id).then(() => fetchAllData());
+  };
+
+  const value: State = {
+    machines, types, records, workshops, sheets, workshopRecords, spareParts, technicians, settings, usageLogs, usageCycles, notifications,
+    addMachine, updateMachine, deleteMachine, addRecord, updateRecord, deleteRecord, addType, updateType, deleteType, addWorkshop, updateWorkshop, deleteWorkshop, upsertComponent, deleteComponent,
+    addMachineDocuments, removeMachineDocument, addWorkshopRecord, updateWorkshopRecord, deleteWorkshopRecord, addWorkshopLog, addDocumentsToWorkshop, removeDocumentFromWorkshop,
+    addSparePart, updateSparePart, deleteSparePart, addTechnician, updateTechnician, deleteTechnician, updateSettings, allDocuments,
+    addUsageLog, clearAllUsageLogs, resetCycle, markNotificationRead, markAllRead, deleteNotification
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
+
 
 export function useMantePro() {
   const ctx = useContext(Ctx);

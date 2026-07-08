@@ -25,6 +25,7 @@ function Detail() {
   const { id } = useParams({ from: "/mantenimientos/$id" });
   const navigate = useNavigate();
   const { records, machines, types, updateRecord } = useMantePro();
+  
   const r = records.find((x) => x.id === id);
   const [edit, setEdit] = useState(false);
 
@@ -40,46 +41,63 @@ function Detail() {
   const m = machines.find((x) => x.id === r.machineId);
   const t = types.find((x) => x.id === r.typeId);
   const nt = types.find((x) => x.id === r.nextTypeId);
-  const partsTotal = r.parts.reduce((s, p) => s + p.quantity * p.unitCost, 0);
+  
+  const activities = Array.isArray(r.activities) ? r.activities : [];
+  const parts = Array.isArray(r.parts) ? r.parts : [];
+  
+  const partsTotal = parts.reduce((s, p) => s + (Number(p?.quantity) || 0) * (Number(p?.unitCost) || 0), 0);
+  const laborTotal = Number(r.laborCost) || 0;
+  const grandTotal = partsTotal + laborTotal;
 
-  const changeStatus = (s: RecordStatus) => { updateRecord(r.id, { status: s }); toast.success(`Estado: ${s}`); };
+  const changeStatus = (s: RecordStatus) => { 
+    if (!s) return;
+    updateRecord(r.id, { status: s }); 
+    toast.success(`Estado cambiado a: ${s}`); 
+  };
 
   return (
-    <AppShell title={`${r.otm} — ${m?.name ?? "—"}`}>
+    <AppShell title={`${r.otm || "OTM"} — ${m?.name || "Sin máquina"}`}>
       <div className="mb-4 flex flex-wrap items-center gap-2 print:hidden">
-        <Button asChild variant="ghost" size="sm"><Link to="/mantenimientos"><ArrowLeft className="h-4 w-4 mr-1" /> Volver</Link></Button>
-        <Button size="sm" variant="ghost" onClick={() => setEdit(true)}><Pencil className="h-4 w-4 mr-1" /> Editar</Button>
-        <Button size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir OTM</Button>
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/mantenimientos"><ArrowLeft className="h-4 w-4 mr-1" /> Volver</Link>
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setEdit(true)}>
+          <Pencil className="h-4 w-4 mr-1" /> Editar
+        </Button>
+        <Button size="sm" onClick={() => window.print()}>
+          <Printer className="h-4 w-4 mr-1" /> Imprimir OTM
+        </Button>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Cambiar estado:</span>
-          <Select value={r.status} onValueChange={(v) => changeStatus(v as RecordStatus)}>
+          <Select value={r.status || "Programado"} onValueChange={(v) => changeStatus(v as RecordStatus)}>
             <SelectTrigger className="w-[160px] bg-card"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {(["Programado", "En Proceso", "Completado", "Cancelado"] as const).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              {(["Programado", "En Proceso", "Completado", "Cancelado"] as const).map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </div>
 
       <div className="print-area space-y-4">
-        {/* Header sheet */}
         <Card className="bg-card border-border">
           <CardContent className="p-5">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
               <div>
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">MantePro — Orden de Trabajo de Mantenimiento</div>
-                <h2 className="text-2xl font-bold font-mono text-primary">{r.otm}</h2>
+                <h2 className="text-2xl font-bold font-mono text-primary">{r.otm || "SIN CÓDIGO"}</h2>
                 <div className="text-sm text-muted-foreground">Emitida {formatDateLong(r.date)}</div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                {t && <span className={`inline-flex rounded-md border px-2 py-0.5 text-xs ${typeColorClass(t.color)}`}>{t.name}</span>}
-                <span className={`inline-flex rounded-md border px-2 py-0.5 text-xs ${statusTones[r.status]}`}>{r.status}</span>
+                {t && <span className={`inline-flex rounded-md border px-2 py-0.5 text-xs ${typeColorClass(t.color || "")}`}>{t.name}</span>}
+                <span className={`inline-flex rounded-md border px-2 py-0.5 text-xs ${statusTones[r.status] || "bg-muted text-muted-foreground border-border"}`}>{r.status || "Desconocido"}</span>
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 pt-4 text-sm">
               <Info label="Máquina" value={m?.name} />
               <Info label="Código" value={m?.code} mono />
-              <Info label="Marca / Modelo" value={m ? `${m.brand} / ${m.model}` : "—"} />
+              <Info label="Marca / Modelo" value={m ? `${m.brand || ""} / ${m.model || ""}` : "—"} />
               <Info label="Área" value={r.area || m?.area} />
               <Info label="Técnico responsable" value={r.technician} />
               <Info label="Supervisor" value={r.supervisor} />
@@ -92,53 +110,68 @@ function Detail() {
         <Card className="bg-card border-border">
           <CardHeader><CardTitle className="text-base">Actividades realizadas</CardTitle></CardHeader>
           <CardContent className="p-0">
-            {r.activities.length === 0 ? (
+            {activities.length === 0 ? (
               <div className="p-6 text-sm text-muted-foreground">Sin actividades registradas.</div>
             ) : (
               <ul className="divide-y divide-border">
-                {r.activities.map((a) => (
-                  <li key={a.id} className="flex items-start gap-3 p-3">
+                {activities.map((a) => (
+                  <li key={a.id || Math.random().toString()} className="flex items-start gap-3 p-3">
                     {a.done ? <Check className="h-4 w-4 text-success mt-1" /> : <X className="h-4 w-4 text-muted-foreground mt-1" />}
                     <div className="min-w-0 flex-1">
-                      <div className={`text-sm ${a.done ? "" : "text-muted-foreground"}`}>{a.text}</div>
+                      <div className={`text-sm ${a.done ? "" : "text-muted-foreground"}`}>{a.text || "—"}</div>
                       {a.observations && <div className="text-xs text-muted-foreground mt-0.5">↳ {a.observations}</div>}
                     </div>
                   </li>
                 ))}
               </ul>
             )}
-            {r.notes && <div className="border-t border-border p-4 text-sm"><span className="text-xs uppercase tracking-wider text-muted-foreground">Observaciones generales</span><p className="mt-1">{r.notes}</p></div>}
+            {r.notes && (
+              <div className="border-t border-border p-4 text-sm">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground">Observaciones generales</span>
+                <p className="mt-1">{r.notes}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border">
           <CardHeader><CardTitle className="text-base">Repuestos y costos</CardTitle></CardHeader>
           <CardContent>
-            {r.parts.length === 0 ? (
+            {parts.length === 0 ? (
               <div className="text-sm text-muted-foreground">Sin repuestos.</div>
             ) : (
               <div className="overflow-x-auto rounded-md border border-border">
                 <table className="w-full text-sm">
                   <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr><th className="text-left p-2">Repuesto / Insumo</th><th className="text-right p-2">Cant.</th><th className="text-right p-2">C. Unit. (S/)</th><th className="text-right p-2">Subtotal</th></tr>
+                    <tr>
+                      <th className="text-left p-2">Repuesto / Insumo</th>
+                      <th className="text-right p-2">Cant.</th>
+                      <th className="text-right p-2">C. Unit. (S/)</th>
+                      <th className="text-right p-2">Subtotal</th>
+                    </tr>
                   </thead>
                   <tbody>
-                    {r.parts.map((p) => (
-                      <tr key={p.id} className="border-t border-border">
-                        <td className="p-2">{p.name}</td>
-                        <td className="p-2 text-right font-mono">{p.quantity}</td>
-                        <td className="p-2 text-right font-mono">{p.unitCost.toFixed(2)}</td>
-                        <td className="p-2 text-right font-mono">{(p.quantity * p.unitCost).toFixed(2)}</td>
-                      </tr>
-                    ))}
+                    {parts.map((p) => {
+                      const qty = Number(p?.quantity) || 0;
+                      const uCost = Number(p?.unitCost) || 0;
+                      const sub = qty * uCost;
+                      return (
+                        <tr key={p?.id || Math.random().toString()} className="border-t border-border">
+                          <td className="p-2">{p?.name || "—"}</td>
+                          <td className="p-2 text-right font-mono">{qty}</td>
+                          <td className="p-2 text-right font-mono">{uCost.toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono">{sub.toFixed(2)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
             <div className="mt-3 grid gap-1 text-sm sm:grid-cols-3 text-right">
               <div><span className="text-muted-foreground">Repuestos:</span> <span className="font-mono">S/ {partsTotal.toFixed(2)}</span></div>
-              <div><span className="text-muted-foreground">Mano de obra:</span> <span className="font-mono">S/ {r.laborCost.toFixed(2)}</span></div>
-              <div className="font-semibold text-primary">Total: <span className="font-mono">S/ {(partsTotal + r.laborCost).toFixed(2)}</span></div>
+              <div><span className="text-muted-foreground">Mano de obra:</span> <span className="font-mono">S/ {laborTotal.toFixed(2)}</span></div>
+              <div className="font-semibold text-primary">Total: <span className="font-mono">S/ {grandTotal.toFixed(2)}</span></div>
             </div>
           </CardContent>
         </Card>
@@ -148,7 +181,12 @@ function Detail() {
           <CardContent className="grid gap-3 sm:grid-cols-2 text-sm">
             <Info label="Estado post-mantenimiento" value={r.postState} />
             <Info label="Próximo mantenimiento" value={r.nextDate ? `${formatDate(r.nextDate)}${nt ? ` · ${nt.name}` : ""}` : "—"} />
-            {r.findings && <div className="sm:col-span-2"><div className="text-xs uppercase tracking-wider text-muted-foreground">Hallazgos importantes</div><p className="mt-1">{r.findings}</p></div>}
+            {r.findings && (
+              <div className="sm:col-span-2">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">Hallazgos importantes</div>
+                <p className="mt-1">{r.findings}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -178,7 +216,7 @@ function Detail() {
   );
 }
 
-function Info({ label, value, mono }: { label: string; value?: string; mono?: boolean }) {
+function Info({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
   return (
     <div>
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
@@ -187,7 +225,7 @@ function Info({ label, value, mono }: { label: string; value?: string; mono?: bo
   );
 }
 
-function Signature({ label, value }: { label: string; value?: string }) {
+function Signature({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
       <div className="h-16 border-b border-border" />
@@ -196,3 +234,4 @@ function Signature({ label, value }: { label: string; value?: string }) {
     </div>
   );
 }
+

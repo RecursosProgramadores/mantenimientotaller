@@ -179,8 +179,8 @@ function SendDialog({ onClose, onSubmit }: { onClose: () => void; onSubmit: (r: 
   const [affectedComponentIds, setAffectedComponentIds] = useState<string[]>([]);
   const [condition, setCondition] = useState<WorkshopCondition>("Parcialmente operativo");
   const [approvedBudget, setApprovedBudget] = useState(0);
-  const [authorizedBy, setAuthorizedBy] = useState("J. Mendoza");
-  const [technician, setTechnician] = useState("J. Mendoza");
+  const [authorizedBy, setAuthorizedBy] = useState("ING. JOHNNY BRYNNER VILCHEZ MIRANDA");
+  const [technician, setTechnician] = useState("ING. JOHNNY BRYNNER VILCHEZ MIRANDA");
   const [documents, setDocuments] = useState<any[]>([]);
 
   const machine = machines.find((m) => m.id === machineId);
@@ -225,7 +225,7 @@ function SendDialog({ onClose, onSubmit }: { onClose: () => void; onSubmit: (r: 
           <div><Label>Teléfono</Label><Input value={workshopPhone} onChange={(e) => setWorkshopPhone(e.target.value)} /></div>
           <div><Label>Persona de contacto</Label><Input value={workshopContact} onChange={(e) => setWorkshopContact(e.target.value)} /></div>
           <div><Label>Fecha estimada de retorno</Label><Input type="date" value={estimatedReturn} onChange={(e) => setEstimatedReturn(e.target.value)} /></div>
-          <div><Label>Técnico responsable</Label><Input value={technician} onChange={(e) => setTechnician(e.target.value)} /></div>
+          <div><Label>Técnico responsable</Label><Input disabled className="bg-muted text-muted-foreground" value={technician} onChange={(e) => setTechnician(e.target.value)} /></div>
         </div>
       </section>
 
@@ -251,7 +251,7 @@ function SendDialog({ onClose, onSubmit }: { onClose: () => void; onSubmit: (r: 
             </Select>
           </div>
           <div><Label>Presupuesto aprobado (S/)</Label><Input type="number" value={approvedBudget} onChange={(e) => setApprovedBudget(Number(e.target.value))} /></div>
-          <div><Label>Autorizado por</Label><Input value={authorizedBy} onChange={(e) => setAuthorizedBy(e.target.value)} /></div>
+          <div><Label>Autorizado por</Label><Input disabled className="bg-muted text-muted-foreground" value={authorizedBy} onChange={(e) => setAuthorizedBy(e.target.value)} /></div>
         </div>
         <div><Label>Descripción detallada del problema</Label><Textarea rows={3} value={problemDescription} onChange={(e) => setProblemDescription(e.target.value)} /></div>
         {machine && machine.components.length > 0 && (

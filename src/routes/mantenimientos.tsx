@@ -79,7 +79,7 @@ Acción requerida: Mantenimiento correctivo inmediato. Ciclo de uso superado.`
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (childMatches.length > 0) return <Outlet />;
+
 
   const editing = editingId ? records.find((r) => r.id === editingId) ?? null : null;
 
@@ -117,6 +117,8 @@ Acción requerida: Mantenimiento correctivo inmediato. Ciclo de uso superado.`
     a.click(); URL.revokeObjectURL(url);
     toast.success(`Exportadas ${filtered.length} órdenes`);
   };
+
+  if (childMatches.length > 0) return <Outlet />;
 
   return (
     <AppShell title="Mantenimientos">

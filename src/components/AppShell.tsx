@@ -2,13 +2,19 @@ import { type ReactNode, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Factory, Wrench, ClipboardList, Store,
-  FileText, BarChart3, Settings, Search, Menu, User, Timer, Bell,
+  FileText, BarChart3, Settings, Search, Menu, User, Timer, Bell, ChevronDown, LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMantePro } from "@/context/MantePro";
 import { NotificationBell } from "@/components/NotificationBell";
+import { useAuth } from "@/context/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { toast } from "sonner";
 
 const nav = [
@@ -28,7 +34,8 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { machines, records, workshops, allDocuments, notifications } = useMantePro();
+  const { machines, records, workshops, allDocuments, notifications, settings } = useMantePro();
+  const { user, logout } = useAuth();
   const [q, setQ] = useState("");
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -45,22 +52,29 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-background text-foreground">
-      {/* Sidebar */}
+    <ProtectedRoute>
+      <div className="flex min-h-screen w-full bg-background text-foreground">
+        {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex flex-col border-r border-border bg-sidebar transition-all duration-200",
+          "fixed inset-y-0 left-0 z-40 flex flex-col border-r border-border bg-sidebar transition-all duration-200 print:hidden",
           collapsed ? "w-16" : "w-64",
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
         <div className="flex h-16 items-center gap-2 border-b border-border px-4">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground font-bold">
-            M
-          </div>
+          {settings?.institutionLogo ? (
+            <img src={settings.institutionLogo} alt="Logo" className="h-9 w-9 shrink-0 rounded-md object-cover border border-border" />
+          ) : (
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground font-bold">
+              {settings?.institutionName ? settings.institutionName.charAt(0).toUpperCase() : 'M'}
+            </div>
+          )}
           {!collapsed && (
             <div className="min-w-0">
-              <div className="text-sm font-bold tracking-tight">MantePro</div>
+              <div className="text-sm font-bold tracking-tight truncate" title={settings?.institutionName || "MantePro"}>
+                {settings?.institutionName || "MantePro"}
+              </div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Industrial Maint.</div>
             </div>
           )}
@@ -121,8 +135,8 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
       )}
 
       {/* Main */}
-      <div className={cn("flex flex-1 flex-col min-w-0", collapsed ? "md:pl-16" : "md:pl-64")}>
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur md:px-6">
+      <div className={cn("flex flex-1 flex-col min-w-0 print:m-0 print:p-0", collapsed ? "md:pl-16" : "md:pl-64")}>
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur md:px-6 print:hidden">
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
@@ -138,18 +152,54 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
           </form>
           {/* Functional notification bell */}
           <NotificationBell />
-          <div className="flex items-center gap-2 pl-2 border-l border-border">
-            <div className="grid h-8 w-8 place-items-center rounded-full bg-secondary text-foreground">
-              <User className="h-4 w-4" />
-            </div>
-            <div className="hidden sm:block leading-tight">
-              <div className="text-sm font-medium">J. Mendoza</div>
-              <div className="text-[11px] text-muted-foreground">Jefe de Mantenimiento</div>
-            </div>
+          <div className="flex items-center pl-2 border-l border-border">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-9 px-2 flex items-center gap-2 hover:bg-secondary/50 outline-none">
+                  <div className="grid h-7 w-7 place-items-center rounded-full bg-amber-500/20 text-amber-500 font-bold text-xs shrink-0">
+                    {user?.name?.substring(0, 2).toUpperCase() || "US"}
+                  </div>
+                  <div className="hidden sm:block text-left leading-tight">
+                    <div className="text-sm font-medium">{user?.name || "Usuario"}</div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground ml-1 hidden sm:block" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-[#1A1D27] border-[#2A2D3A] shadow-xl rounded-xl">
+                <DropdownMenuLabel className="font-normal flex items-center gap-3 py-3 px-3">
+                  <div className="grid h-8 w-8 place-items-center rounded-full bg-amber-500/20 text-amber-500 font-bold text-xs shrink-0">
+                    {user?.name?.substring(0, 2).toUpperCase() || "US"}
+                  </div>
+                  <div className="flex flex-col space-y-0.5">
+                    <p className="text-sm font-medium leading-none text-white">{user?.name}</p>
+                    <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500 w-fit mt-1">
+                      {user?.role}
+                    </span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-[#2A2D3A]" />
+                <DropdownMenuItem disabled className="text-slate-300 py-2.5 cursor-not-allowed">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Mi perfil (Próximamente)</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="text-slate-300 py-2.5 cursor-pointer focus:bg-[#2A2D3A] focus:text-white">
+                  <Link to="/configuracion">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Configuración</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-[#2A2D3A]" />
+                <DropdownMenuItem onClick={logout} className="text-red-400 py-2.5 cursor-pointer focus:bg-red-500/10 focus:text-red-400">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Cerrar sesión</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

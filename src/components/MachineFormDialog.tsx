@@ -17,7 +17,7 @@ interface Props {
 }
 
 const DAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
-const TURNOS = ["Mañana (6am–2pm)", "Tarde (2pm–10pm)", "Noche (10pm–6am)", "Tiempo completo", "Variable"] as const;
+const TURNOS = ["Mañana (6am–2pm)", "Tarde (2pm–10pm)", "Noche (10pm–6am)", "Tiempo completo (8am–1pm, 3pm–5pm)", "Variable"] as const;
 const TURNO_VALUES = ["Mañana", "Tarde", "Noche", "Tiempo completo", "Variable"] as const;
 
 const defaultThreshold = (): MachineThreshold => ({
@@ -88,7 +88,7 @@ export function MachineFormDialog({ open, onOpenChange, machine }: Props) {
   };
 
   // Summary calculations
-  const hoursPerDay = thresh.turno === "Tiempo completo" ? 12 : thresh.turno === "Variable" ? 8 : 8;
+  const hoursPerDay = thresh.turno === "Tiempo completo" ? 7 : thresh.turno === "Variable" ? 8 : 8;
   const horasSemana = thresh.diasOperacion.length * hoursPerDay;
   const alertaHoras = Math.round(thresh.horasCiclo * thresh.alertaPct / 100);
   const alertaDias = Math.round(thresh.diasMaximos * thresh.alertaPct / 100);
