@@ -1,16 +1,25 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/mantenimientotaller/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MantePro — Gestión de Mantenimiento Industrial</title>
     <meta name="description" content="Sistema profesional de gestión de mantenimiento industrial: máquinas, mantenimientos, talleres y reportes." />
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('mantepro-theme');
+          var isDark = stored === 'dark' || (stored !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/mantenimientotaller/assets/index-DC2_p2BQ.js"></script>
-    <link rel="stylesheet" crossorigin href="/mantenimientotaller/assets/index-CKKrSqbo.css">
+    <script type="module" crossorigin src="/mantenimientotaller/assets/index-DwxxFo_1.js"></script>
+    <link rel="stylesheet" crossorigin href="/mantenimientotaller/assets/index-ZLfAk5Ih.css">
   </head>
   <body>
     <div id="root"></div>
