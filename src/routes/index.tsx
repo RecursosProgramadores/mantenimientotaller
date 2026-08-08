@@ -311,8 +311,9 @@ function Dashboard() {
                         </div>
                         <div className="text-xs text-muted-foreground truncate mt-0.5">{n.message}</div>
                       </div>
-                      <a
-                        href={`#/mantenimientos?machineId=${n.machineId}&typeId=t-correctivo&urgent=${n.type === "critical" ? "1" : "0"}`}
+                      <Link
+                        to="/mantenimientos"
+                        search={{ machineId: n.machineId, typeId: "t-correctivo", urgent: n.type === "critical" ? "1" : "0" }}
                         className={`inline-flex items-center justify-center h-7 shrink-0 rounded-md border px-3 text-xs font-medium transition-colors ${
                           n.type === "critical"
                             ? "border-critical/40 text-critical hover:bg-critical/10"
@@ -320,7 +321,7 @@ function Dashboard() {
                         }`}
                       >
                         {n.type === "critical" ? "Crear OTM" : "Programar OTM"}
-                      </a>
+                      </Link>
                     </li>
                   );
                 })}

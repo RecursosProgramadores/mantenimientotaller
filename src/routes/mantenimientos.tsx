@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useChildMatches, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +15,16 @@ import { Plus, Trash2, Wrench, Search, Download, Eye, Pencil } from "lucide-reac
 import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
 
+// Search params que llegan desde el botón "Crear OTM urgente"/"Programar OTM"
+// de las notificaciones (Dashboard y Notificaciones). Antes esto se leía a
+// mano desde window.location.hash (específico de HashRouter); con
+// validateSearch funciona igual sin importar el modo de historial del router.
 export const Route = createFileRoute("/mantenimientos")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    machineId: typeof search.machineId === "string" ? search.machineId : undefined,
+    typeId: typeof search.typeId === "string" ? search.typeId : undefined,
+    urgent: search.urgent === "1" || search.urgent === true,
+  }),
   head: () => ({
     meta: [
       { title: "Mantenimientos — MantePro" },
@@ -34,6 +43,8 @@ const statusTones: Record<RecordStatus, string> = {
 
 function Page() {
   const { records, machines, types, deleteRecord } = useMantePro();
+  const navigate = useNavigate();
+  const searchParams = Route.useSearch();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<{
@@ -49,17 +60,11 @@ function Page() {
 
   const childMatches = useChildMatches();
 
-  // Read URL search params on mount — e.g. from "Crear OTM urgente" button
-  // App uses HashRouter: URL is /#/mantenimientos?machineId=x&typeId=y&urgent=1
+  // Prefill desde el botón "Crear OTM urgente"/"Programar OTM" de una
+  // notificación — llega como search params reales de la ruta (?machineId=
+  // &typeId=&urgent=), ya no como texto suelto en el hash de la URL.
   useEffect(() => {
-    const hash = window.location.hash; // e.g. "#/mantenimientos?machineId=m3&..."
-    const qIdx = hash.indexOf("?");
-    if (qIdx === -1) return;
-    const params = new URLSearchParams(hash.slice(qIdx + 1));
-    const machineId = params.get("machineId");
-    const typeId = params.get("typeId");
-    const urgent = params.get("urgent") === "1";
-    const notesParam = params.get("notes");
+    const { machineId, typeId, urgent } = searchParams;
     if (machineId || typeId) {
       const mach = machines.find((m) => m.id === machineId);
       const mType = types.find((t) => t.id === typeId);
@@ -68,13 +73,12 @@ function Page() {
 Máquina: ${mach?.name ?? machineId} (${mach?.code ?? "—"})
 Tipo: ${mType?.name ?? typeId}
 Acción requerida: Mantenimiento correctivo inmediato. Ciclo de uso superado.`
-        : notesParam ?? "";
+        : "";
       setPrefill({ machineId: machineId ?? undefined, typeId: typeId ?? undefined, notes: autoNotes, status: "En Proceso", urgent });
       setEditingId(null);
       setOpen(true);
-      // Clean params from hash URL without reloading
-      const cleanHash = hash.slice(0, qIdx);
-      window.history.replaceState({}, "", window.location.pathname + cleanHash);
+      // Limpia los search params de la URL sin dejar rastro ni recargar.
+      navigate({ to: "/mantenimientos", search: {}, replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

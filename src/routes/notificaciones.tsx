@@ -253,8 +253,9 @@ function NotificacionesPage() {
                       </Link>
                     )}
                     {action && (
-                      <a
-                        href={`#/mantenimientos?machineId=${n.machineId}&typeId=t-correctivo&urgent=${n.type === "critical" ? "1" : "0"}`}
+                      <Link
+                        to="/mantenimientos"
+                        search={{ machineId: n.machineId, typeId: "t-correctivo", urgent: n.type === "critical" ? "1" : "0" }}
                         className={cn(
                           "inline-flex items-center justify-center rounded-md border h-7 px-3 text-xs font-medium transition-colors",
                           n.type === "critical" && "border-critical/40 text-critical hover:bg-critical/10",
@@ -264,7 +265,7 @@ function NotificacionesPage() {
                         onClick={() => markNotificationRead(n.id)}
                       >
                         {action}
-                      </a>
+                      </Link>
                     )}
                     <button
                       onClick={() => markNotificationRead(n.id)}

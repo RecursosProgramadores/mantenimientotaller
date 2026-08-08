@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MantePro — Gestión de Mantenimiento Industrial</title>
+    <script>
+      // GitHub Pages no soporta rutas del lado del servidor: cuando alguien
+      // entra directo a una URL interna (ej. /mantenimientotaller/maquinas)
+      // o refresca la página, GitHub Pages no encuentra ese archivo y sirve
+      // este 404.html. Aquí codificamos la ruta pedida en la query string y
+      // redirigimos a la raíz del sitio; index.html la vuelve a armar antes
+      // de que arranque el router (ver el script al inicio de <head> ahí).
+      // Técnica estándar: https://github.com/rafgraph/spa-github-pages
+      var pathSegmentsToKeep = 1; // mantiene "/mantenimientotaller" como base
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+        l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
