@@ -8,9 +8,76 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useMantePro, getMachineAlertStatus, getMachineUsagePct, type UsageLog } from "@/context/MantePro";
-import { Plus, Clock, RefreshCw, AlertTriangle , Printer} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Plus, Clock, RefreshCw, AlertTriangle, Printer, GraduationCap, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
+
+// ── Facultades oficiales de la Universidad Nacional Hermilio Valdizán (UNHEVAL) — Huánuco, Perú ──
+const UNHEVAL_FACULTADES = [
+  "Ciencias Administrativas y Turismo",
+  "Ciencias Agrarias",
+  "Ciencias Contables y Financieras",
+  "Ciencias de la Educación",
+  "Ciencias Sociales",
+  "Derecho y Ciencias Políticas",
+  "Economía",
+  "Enfermería",
+  "Ingeniería Civil y Arquitectura",
+  "Ingeniería Industrial, de Sistemas y Mecatrónica",
+  "Medicina",
+  "Medicina Veterinaria y Zootecnia",
+  "Obstetricia",
+  "Psicología",
+] as const;
+
+// ── Buscador de facultad (combobox con filtro instantáneo) ────────────────────
+function FacultyCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            "flex h-8 w-full cursor-pointer items-center justify-between gap-2 rounded-md border border-input bg-background px-2.5 text-xs transition-colors duration-150 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            !value && "text-muted-foreground",
+          )}
+        >
+          <span className="truncate">{value || "Selecciona tu facultad…"}</span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[--radix-popover-trigger-width] p-0">
+        <Command>
+          <CommandInput placeholder="Buscar facultad…" className="text-xs" />
+          <CommandList>
+            <CommandEmpty className="py-4 text-center text-xs text-muted-foreground">
+              No se encontró ninguna facultad.
+            </CommandEmpty>
+            <CommandGroup>
+              {UNHEVAL_FACULTADES.map((f) => (
+                <CommandItem
+                  key={f}
+                  value={f}
+                  onSelect={() => { onChange(f); setOpen(false); }}
+                  className="cursor-pointer text-xs"
+                >
+                  <Check className={cn("h-3.5 w-3.5 shrink-0", value === f ? "text-primary opacity-100" : "opacity-0")} />
+                  {f}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export const Route = createFileRoute("/uso-maquinas")({
   head: () => ({
@@ -30,44 +97,38 @@ function CircularGauge({ pct }: { pct: number }) {
   const clampedPct = Math.min(pct, 100);
   const dashArray = (clampedPct / 100) * circumference;
 
-  const color =
-    pct >= 100 ? "#EF4444" :
-    pct >= 60  ? "#F59E0B" :
-                 "#22C55E";
-
-  const textColor =
-    pct >= 100 ? "#EF4444" :
-    pct >= 60  ? "#F59E0B" :
-                 "#22C55E";
+  const colorVar =
+    pct >= 100 ? "var(--critical)" :
+    pct >= 60  ? "var(--warning)" :
+                 "var(--success)";
 
   return (
     <svg width="96" height="96" viewBox="0 0 100 100" className="mx-auto">
       {/* Track */}
-      <circle cx="50" cy="50" r={r} fill="none" stroke="#2A2D3A" strokeWidth={strokeW} />
+      <circle cx="50" cy="50" r={r} fill="none" style={{ stroke: "var(--border)" }} strokeWidth={strokeW} />
       {/* Progress */}
       <circle
         cx="50" cy="50" r={r}
         fill="none"
-        stroke={color}
+        style={{ stroke: colorVar, transition: "stroke-dasharray 0.6s ease, stroke 0.2s ease" }}
         strokeWidth={strokeW}
         strokeLinecap="round"
         strokeDasharray={`${dashArray} ${circumference}`}
         strokeDashoffset="0"
         transform="rotate(-90 50 50)"
-        style={{ transition: "stroke-dasharray 0.6s ease, stroke 0.3s ease" }}
       />
       {/* Center text */}
       <text
         x="50" y="46"
         textAnchor="middle"
-        fill={textColor}
+        style={{ fill: colorVar, transition: "fill 0.2s ease" }}
         fontSize="15"
         fontWeight="bold"
         fontFamily="monospace"
       >
         {Number(pct).toFixed(2)}%
       </text>
-      <text x="50" y="61" textAnchor="middle" fill="#6B7280" fontSize="9">
+      <text x="50" y="61" textAnchor="middle" style={{ fill: "var(--muted-foreground)" }} fontSize="9">
         uso ciclo
       </text>
     </svg>
@@ -82,6 +143,10 @@ function MachineUsageCard({ machineId, onRegister }: { machineId: string; onRegi
   const threshold = machine?.threshold;
 
   if (!machine) return null;
+
+  // Una máquina enviada a un taller externo no está disponible: no debe
+  // poder registrarse uso sobre ella hasta que vuelva (ver talleres-externos).
+  const inWorkshop = machine.status === "En Taller";
 
   const pct = getMachineUsagePct(cycle, threshold);
   const alertStatus = getMachineAlertStatus(cycle, threshold);
@@ -103,21 +168,21 @@ function MachineUsageCard({ machineId, onRegister }: { machineId: string; onRegi
 
   const statusLabel =
     alertStatus === "critical"
-      ? <span className="flex items-center gap-1 text-[11px] font-semibold text-red-400"><AlertTriangle className="h-3 w-3" /> Límite superado</span>
+      ? <span className="flex items-center gap-1 text-[11px] font-semibold text-critical"><AlertTriangle className="h-3 w-3" /> Límite superado</span>
       : alertStatus === "warning"
-      ? <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-400"><AlertTriangle className="h-3 w-3" /> Atención</span>
-      : <span className="text-[11px] font-semibold text-green-400">Normal</span>;
+      ? <span className="flex items-center gap-1 text-[11px] font-semibold text-warning"><AlertTriangle className="h-3 w-3" /> Atención</span>
+      : <span className="text-[11px] font-semibold text-success">Normal</span>;
 
   // Cycle reset badge
   const wasReset = cycle?.otmRef;
 
   return (
-    <Card className={`relative bg-card border-border min-w-[200px] flex-shrink-0 ${cardClass}`}>
+    <Card className={`relative bg-card border-border min-w-[200px] flex-shrink-0 ${inWorkshop ? "opacity-70" : cardClass}`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-1">
           <span className="font-mono text-[11px] text-primary font-semibold">{machine.code}</span>
-          {wasReset && (
-            <span className="flex items-center gap-0.5 text-[10px] text-green-400">
+          {wasReset && !inWorkshop && (
+            <span className="flex items-center gap-0.5 text-[10px] text-success">
               <RefreshCw className="h-2.5 w-2.5" /> Ciclo reiniciado
             </span>
           )}
@@ -135,22 +200,28 @@ function MachineUsageCard({ machineId, onRegister }: { machineId: string; onRegi
           </div>
           {daysSince !== null && threshold && (
             <div className="text-xs text-muted-foreground">
-              <span className={`font-mono font-semibold ${daysSince >= threshold.diasMaximos ? "text-red-400" : daysSince >= threshold.diasMaximos * 0.9 ? "text-amber-400" : "text-foreground"}`}>
+              <span className={`font-mono font-semibold ${daysSince >= threshold.diasMaximos ? "text-critical" : daysSince >= threshold.diasMaximos * 0.9 ? "text-warning" : "text-foreground"}`}>
                 {daysSince} días
               </span>
               {" / "}{threshold.diasMaximos} días máx
             </div>
           )}
-          <div className="mt-1">{statusLabel}</div>
+          <div className="mt-1">
+            {inWorkshop
+              ? <span className="text-[11px] font-semibold text-warning">En taller externo</span>
+              : statusLabel}
+          </div>
         </div>
 
         <Button
           size="sm"
           variant="outline"
           className="mt-3 w-full text-xs h-7"
+          disabled={inWorkshop}
+          title={inWorkshop ? "Esta máquina está en un taller externo y no puede usarse" : undefined}
           onClick={() => onRegister(machineId)}
         >
-          <Clock className="h-3 w-3 mr-1" /> Registrar uso
+          <Clock className="h-3 w-3 mr-1" /> {inWorkshop ? "No disponible" : "Registrar uso"}
         </Button>
       </CardContent>
     </Card>
@@ -164,6 +235,7 @@ interface LogFormState {
   nombre: string;
   dni: string;
   codigoAlumno: string;
+  facultad: string;
   startAt: string;
   endAt: string;
   hours: string;
@@ -196,6 +268,10 @@ function RegisterModal({
 }) {
   const { machines, technicians, usageCycles: cycles, addUsageLog: addLog } = useMantePro();
 
+  // Las máquinas actualmente enviadas a un taller externo no pueden usarse:
+  // se excluyen del selector para que no se pueda registrar uso sobre ellas.
+  const selectableMachines = machines.filter((m: any) => m.status !== "En Taller");
+
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const defaultStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours() - 1)}:00`;
@@ -207,6 +283,7 @@ function RegisterModal({
     nombre: "",
     dni: "",
     codigoAlumno: "",
+    facultad: "",
     startAt: defaultStart,
     endAt: defaultEnd,
     hours: "1",
@@ -237,14 +314,16 @@ function RegisterModal({
 
   const submit = () => {
     if (!form.machineId) { toast.error("Selecciona una máquina"); return; }
+    if (machine?.status === "En Taller") { toast.error("Esta máquina está en un taller externo y no puede usarse"); return; }
     if (!form.nombre.trim()) { toast.error("Ingresa el nombre del operador"); return; }
     if (!form.dni.trim()) { toast.error("Ingresa el DNI del operador"); return; }
     if (form.tipoOperador === "Alumno" && !form.codigoAlumno.trim()) { toast.error("Ingresa el código de estudiante"); return; }
+    if (form.tipoOperador === "Alumno" && !form.facultad.trim()) { toast.error("Selecciona la facultad del alumno"); return; }
     const hours = Number(form.hours);
     if (hours <= 0) { toast.error("Las horas deben ser mayores a 0"); return; }
 
-    const finalOperador = form.tipoOperador === "Alumno" 
-      ? `Alumno: ${form.nombre} | DNI: ${form.dni} | Cód: ${form.codigoAlumno}`
+    const finalOperador = form.tipoOperador === "Alumno"
+      ? `Alumno: ${form.nombre} | DNI: ${form.dni} | Cód: ${form.codigoAlumno} | Facultad: ${form.facultad}`
       : `Externo: ${form.nombre} | DNI: ${form.dni}`;
 
     addLog({
@@ -288,24 +367,27 @@ function RegisterModal({
             <Select value={form.machineId} onValueChange={(v) => setF("machineId", v)}>
               <SelectTrigger><SelectValue placeholder="Seleccionar máquina…" /></SelectTrigger>
               <SelectContent>
-                {machines.map((m: any) => {
+                {selectableMachines.map((m: any) => {
                   const c = cycles.find((x: any) => x.machineId === m.id);
                   const p = getMachineUsagePct(c, m.threshold);
                   return (
                     <SelectItem key={m.id} value={m.id}>
                       <span className="font-mono">{m.code}</span> — {m.name}
-                      <span className={`ml-2 text-xs ${p >= 100 ? "text-red-400" : p >= 60 ? "text-amber-400" : "text-green-400"}`}>
+                      <span className={`ml-2 text-xs ${p >= 100 ? "text-critical" : p >= 60 ? "text-warning" : "text-success"}`}>
                         · {Number(p).toFixed(2)}%
                       </span>
                     </SelectItem>
                   );
                 })}
+                {selectableMachines.length === 0 && (
+                  <div className="px-2 py-3 text-xs text-muted-foreground text-center">Todas las máquinas están en taller externo.</div>
+                )}
               </SelectContent>
             </Select>
             {machine && threshold && (
               <div className="mt-1.5 h-1.5 rounded-full bg-border overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all ${currentPct >= 100 ? "bg-red-500" : currentPct >= 60 ? "bg-amber-500" : "bg-green-500"}`}
+                  className={`h-full rounded-full transition-all ${currentPct >= 100 ? "bg-critical" : currentPct >= 60 ? "bg-warning" : "bg-success"}`}
                   style={{ width: `${Math.min(currentPct, 100)}%` }}
                 />
               </div>
@@ -315,7 +397,9 @@ function RegisterModal({
           {/* Operator Type */}
           <div className="grid gap-3 p-3 bg-secondary/30 rounded-md border border-border">
             <div>
-              <Label className="text-xs text-amber-500 font-semibold mb-1 block">Datos del Operador</Label>
+              <Label className="text-xs text-primary font-semibold mb-1 flex items-center gap-1.5">
+                <GraduationCap className="h-3.5 w-3.5" /> Datos del Operador
+              </Label>
               <Select value={form.tipoOperador} onValueChange={(v: "Alumno" | "Externo") => setF("tipoOperador", v)}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -335,9 +419,15 @@ function RegisterModal({
               </div>
             </div>
             {form.tipoOperador === "Alumno" && (
-              <div>
-                <Label className="text-xs">Código de Estudiante</Label>
-                <Input className="h-8 text-xs" value={form.codigoAlumno} onChange={(e) => setF("codigoAlumno", e.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Código de Estudiante</Label>
+                  <Input className="h-8 text-xs" value={form.codigoAlumno} onChange={(e) => setF("codigoAlumno", e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Facultad (UNHEVAL — Huánuco)</Label>
+                  <FacultyCombobox value={form.facultad} onChange={(v) => setF("facultad", v)} />
+                </div>
               </div>
             )}
           </div>
@@ -517,13 +607,13 @@ function UsoMaquinasPage() {
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total máquinas</div>
           <div className="text-2xl font-bold mt-1">{machines.length}</div>
         </div>
-        <div className={`rounded-lg bg-card border p-3 ${warningCount > 0 ? "border-amber-500/40" : "border-border"}`}>
+        <div className={`rounded-lg bg-card border p-3 ${warningCount > 0 ? "border-warning/40" : "border-border"}`}>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">En alerta</div>
-          <div className={`text-2xl font-bold mt-1 ${warningCount > 0 ? "text-amber-400" : "text-foreground"}`}>{warningCount}</div>
+          <div className={`text-2xl font-bold mt-1 ${warningCount > 0 ? "text-warning" : "text-foreground"}`}>{warningCount}</div>
         </div>
-        <div className={`rounded-lg bg-card border p-3 ${criticalCount > 0 ? "border-red-500/40" : "border-border"}`}>
+        <div className={`rounded-lg bg-card border p-3 ${criticalCount > 0 ? "border-critical/40" : "border-border"}`}>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Umbral superado</div>
-          <div className={`text-2xl font-bold mt-1 ${criticalCount > 0 ? "text-red-400" : "text-foreground"}`}>{criticalCount}</div>
+          <div className={`text-2xl font-bold mt-1 ${criticalCount > 0 ? "text-critical" : "text-foreground"}`}>{criticalCount}</div>
         </div>
       </div>
 

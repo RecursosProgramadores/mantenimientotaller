@@ -5,12 +5,12 @@ import {
   createRootRouteWithContext,
   useRouter,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
-
-import { reportLovableError } from "../lib/lovable-error-reporting";
-import { MantePoProvider } from "../context/MantePro";
-import { AuthProvider } from "../context/AuthContext";
+import { MantePoProvider, useMantePro } from "../context/MantePro";
+import { AuthProvider, useAuth } from "../context/AuthContext";
+import { ThemeProvider } from "../context/ThemeContext";
 import { Toaster } from "../components/ui/sonner";
+import { LoadingScreen } from "../components/LoadingScreen";
+import type { ReactNode } from "react";
 
 function NotFoundComponent() {
   return (
@@ -37,9 +37,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -78,17 +75,37 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+// Muestra la pantalla de carga premium en dos momentos, sin dejar nunca ver
+// una pantalla vacía o en ceros:
+//  1) mientras se verifica si ya hay una sesión guardada (authLoading) —
+//     cubre el caso de refrescar la página estando ya logueado;
+//  2) justo después de iniciar sesión, mientras se trae la primera carga
+//     real de datos (MantePro.initializing).
+// No aparece en /login una vez confirmado que no hay sesión, ni en recargas
+// de datos posteriores dentro de la app (initializing ya quedó en false).
+function AppGate({ children }: { children: ReactNode }) {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { initializing } = useMantePro();
+
+  if (authLoading || (isAuthenticated && initializing)) return <LoadingScreen />;
+  return <>{children}</>;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <MantePoProvider>
-          <Outlet />
-          <Toaster />
-        </MantePoProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <MantePoProvider>
+            <AppGate>
+              <Outlet />
+            </AppGate>
+            <Toaster />
+          </MantePoProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

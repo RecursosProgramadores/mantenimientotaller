@@ -17,19 +17,19 @@ function timeAgo(iso: string): string {
 
 function NotifIcon({ type }: { type: AppNotification["type"] }) {
   if (type === "critical")
-    return <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />;
+    return <AlertCircle className="h-4 w-4 text-critical shrink-0" />;
   if (type === "warning")
-    return <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />;
+    return <AlertTriangle className="h-4 w-4 text-warning shrink-0" />;
   if (type === "reminder")
-    return <Clock className="h-4 w-4 text-blue-400 shrink-0" />;
-  return <CheckCircle className="h-4 w-4 text-green-400 shrink-0" />;
+    return <Clock className="h-4 w-4 text-info shrink-0" />;
+  return <CheckCircle className="h-4 w-4 text-success shrink-0" />;
 }
 
 function dotClass(type: AppNotification["type"]): string {
-  if (type === "critical") return "bg-red-500";
-  if (type === "warning") return "bg-amber-500";
-  if (type === "reminder") return "bg-blue-500";
-  return "bg-green-500";
+  if (type === "critical") return "bg-critical";
+  if (type === "warning") return "bg-warning";
+  if (type === "reminder") return "bg-info";
+  return "bg-success";
 }
 
 export function NotificationBell() {
@@ -72,7 +72,7 @@ export function NotificationBell() {
       >
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
+          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground leading-none">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -80,13 +80,13 @@ export function NotificationBell() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-[380px] rounded-xl border border-border bg-[#1A1D27] shadow-2xl overflow-hidden">
+        <div className="absolute right-0 top-11 z-50 w-[380px] rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <span className="text-sm font-semibold text-foreground">
               Notificaciones
               {unread > 0 && (
-                <span className="ml-2 rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] text-red-400">
+                <span className="ml-2 rounded-full bg-critical/10 px-2 py-0.5 text-[10px] font-medium text-critical">
                   {unread} sin leer
                 </span>
               )}
@@ -94,7 +94,7 @@ export function NotificationBell() {
             {unread > 0 && (
               <button
                 onClick={markAllRead}
-                className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 Marcar todo leído
               </button>
@@ -115,8 +115,8 @@ export function NotificationBell() {
                   <div
                     key={n.id}
                     className={cn(
-                      "group flex gap-3 px-4 py-3 transition-colors hover:bg-white/5 cursor-pointer",
-                      !n.read && "bg-white/[0.02]",
+                      "group flex gap-3 px-4 py-3 transition-colors hover:bg-secondary/60 cursor-pointer",
+                      !n.read && "bg-primary/[0.03]",
                     )}
                     onClick={() => handleClick(n)}
                   >

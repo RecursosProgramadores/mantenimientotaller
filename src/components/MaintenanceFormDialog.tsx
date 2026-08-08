@@ -9,7 +9,7 @@ import {
   useMantePro, nextOTM,
   type MaintenanceRecord, type RecordStatus, type RecordActivity, type RecordPart,
 } from "@/context/MantePro";
-import { Plus, X } from "lucide-react";
+import { Plus, X, ClipboardList, Users, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -39,7 +39,7 @@ function emptyRecord(otm: string): Omit<MaintenanceRecord, "id"> {
 }
 
 export function MaintenanceFormDialog({ open, onOpenChange, recordId, prefill }: Props) {
-  const { records, machines, types, addRecord, updateRecord } = useMantePro();
+  const { records, machines, types, technicians, spareParts, addRecord, updateRecord } = useMantePro();
   const existing = recordId ? records.find((r) => r.id === recordId) : null;
 
   const [f, setF] = useState<Omit<MaintenanceRecord, "id">>(() => {
@@ -90,11 +90,21 @@ export function MaintenanceFormDialog({ open, onOpenChange, recordId, prefill }:
   const partsTotal = f.parts.reduce((s, p) => s + p.quantity * p.unitCost, 0);
   const total = partsTotal + (f.laborCost || 0);
 
-  const submit = () => {
+  const submit = async () => {
     if (!f.machineId || !f.typeId) { toast.error("Máquina y tipo requeridos"); return; }
     const payload = { ...f, cost: total, area: f.area || machine?.area || "" };
-    if (existing) { updateRecord(existing.id, payload); toast.success(`${f.otm} actualizada`); }
-    else { addRecord(payload); toast.success(`${f.otm} creada`); }
+    // Antes esto no esperaba la respuesta de la base de datos: se mostraba
+    // "creada"/"actualizada" y se cerraba el modal de inmediato aunque el
+    // guardado hubiera fallado (por ejemplo por un número de OTM duplicado),
+    // y la orden nunca aparecía en la lista. Ahora se espera el resultado
+    // real; si falla, el modal permanece abierto (ya se mostró el error).
+    if (existing) {
+      const ok = await updateRecord(existing.id, payload);
+      if (!ok) return;
+    } else {
+      const otm = await addRecord(payload);
+      if (!otm) return;
+    }
     onOpenChange(false);
   };
 
@@ -113,13 +123,22 @@ export function MaintenanceFormDialog({ open, onOpenChange, recordId, prefill }:
       <DialogContent className="bg-card border-border max-w-4xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {prefill?.urgent && <span className="rounded bg-red-500/20 px-2 py-0.5 text-xs text-red-400 font-semibold">🔴 URGENTE</span>}
+            {prefill?.urgent && <span className="rounded bg-critical/10 px-2 py-0.5 text-xs text-critical font-semibold">URGENTE</span>}
             {existing ? `Editar ${existing.otm}` : `Nueva orden — ${f.otm}`}
           </DialogTitle>
         </DialogHeader>
 
-        <Section title="1. Orden de Trabajo">
-          <Field label="N° OTM"><Input value={f.otm} onChange={(e) => set("otm", e.target.value)} className="font-mono" /></Field>
+        <Section title="1. Orden de Trabajo" icon={ClipboardList}>
+          <Field label="N° OTM">
+            {existing ? (
+              <Input value={f.otm} onChange={(e) => set("otm", e.target.value)} className="font-mono" />
+            ) : (
+              <>
+                <Input value={f.otm} disabled className="font-mono bg-muted text-muted-foreground" />
+                <p className="mt-1 text-[11px] text-muted-foreground">Se genera automáticamente al guardar (evita números duplicados).</p>
+              </>
+            )}
+          </Field>
           <Field label="Máquina">
             <Select value={f.machineId} onValueChange={(v) => set("machineId", v)}>
               <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
@@ -150,9 +169,30 @@ export function MaintenanceFormDialog({ open, onOpenChange, recordId, prefill }:
           <Field label="Hora fin"><Input type="time" value={f.endTime ?? ""} onChange={(e) => set("endTime", e.target.value)} /></Field>
         </Section>
 
-        <Section title="2. Técnico y Responsables">
-          <Field label="Técnico Responsable"><Input value={f.technician} onChange={(e) => set("technician", e.target.value)} /></Field>
-          <Field label="Supervisor"><Input value={f.supervisor ?? ""} onChange={(e) => set("supervisor", e.target.value)} /></Field>
+        <Section title="2. Técnico y Responsables" icon={Users}>
+          <Field label="Técnico Responsable">
+            <Input
+              list="tecnicos-sugeridos"
+              value={f.technician}
+              onChange={(e) => set("technician", e.target.value)}
+              placeholder="Nombre del técnico"
+            />
+          </Field>
+          <Field label="Supervisor">
+            <Input
+              list="tecnicos-sugeridos"
+              value={f.supervisor ?? ""}
+              onChange={(e) => set("supervisor", e.target.value)}
+              placeholder="Nombre del supervisor"
+            />
+          </Field>
+          {/* Lista de sugerencias basada en usuarios ya registrados, pero el
+              campo acepta cualquier nombre — no está restringido a esta lista.
+              Técnico y Supervisor son independientes entre sí: elegir uno no
+              limita ni afecta las opciones del otro. */}
+          <datalist id="tecnicos-sugeridos">
+            {technicians.map((t) => <option key={t.id} value={t.name} />)}
+          </datalist>
           <Field label="Área"><Input value={f.area ?? ""} onChange={(e) => set("area", e.target.value)} placeholder={machine?.area} /></Field>
         </Section>
 
@@ -199,9 +239,26 @@ export function MaintenanceFormDialog({ open, onOpenChange, recordId, prefill }:
                 <tbody>
                   {f.parts.map((p) => (
                     <tr key={p.id} className="border-t border-border">
-                      <td className="p-2"><Input value={p.name} onChange={(e) => updPart(p.id, { name: e.target.value })} /></td>
-                      <td className="p-2"><Input type="number" min={0} value={p.quantity} onChange={(e) => updPart(p.id, { quantity: Number(e.target.value) })} className="text-right" /></td>
-                      <td className="p-2"><Input type="number" step="0.01" min={0} value={p.unitCost} onChange={(e) => updPart(p.id, { unitCost: Number(e.target.value) })} className="text-right" /></td>
+                      <td className="p-2">
+                        <Input
+                          list="repuestos-catalogo"
+                          value={p.name}
+                          onChange={(e) => {
+                            const name = e.target.value;
+                            // Si el nombre escrito coincide con uno del catálogo
+                            // (venga de la lista sugerida o tipeado a mano), se
+                            // autocompleta el costo unitario desde el catálogo.
+                            // Si no coincide con nada, se guarda igual como
+                            // repuesto/insumo personalizado — no es obligatorio
+                            // que exista en el catálogo.
+                            const match = spareParts.find((sp) => sp.name.trim().toLowerCase() === name.trim().toLowerCase());
+                            updPart(p.id, match ? { name: match.name, unitCost: match.price } : { name });
+                          }}
+                          placeholder="Del catálogo o escribe uno nuevo"
+                        />
+                      </td>
+                      <td className="p-2"><Input type="number" min={0} value={p.quantity || ''} onChange={(e) => updPart(p.id, { quantity: Number(e.target.value) })} className="text-right" /></td>
+                      <td className="p-2"><Input type="number" step="0.01" min={0} value={p.unitCost || ''} onChange={(e) => updPart(p.id, { unitCost: Number(e.target.value) })} className="text-right" /></td>
                       <td className="p-2 text-right font-mono">{(p.quantity * p.unitCost).toFixed(2)}</td>
                       <td className="p-2"><Button size="sm" variant="ghost" className="text-critical" onClick={() => rmPart(p.id)}><X className="h-4 w-4" /></Button></td>
                     </tr>
@@ -210,8 +267,20 @@ export function MaintenanceFormDialog({ open, onOpenChange, recordId, prefill }:
               </table>
             </div>
           )}
+          <datalist id="repuestos-catalogo">
+            {spareParts.map((sp) => (
+              <option key={sp.id} value={sp.name}>
+                {sp.name}{sp.reference ? ` — ${sp.reference}` : ""} (S/ {sp.price.toFixed(2)})
+              </option>
+            ))}
+          </datalist>
+          {spareParts.length === 0 && (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Aún no hay repuestos en el catálogo — puedes escribir uno manualmente, o agrégalos en Configuración → Catálogo de repuestos para que aparezcan aquí como sugerencia.
+            </p>
+          )}
           <div className="mt-3 grid sm:grid-cols-2 gap-3">
-            <Field label="Mano de obra (S/)"><Input type="number" step="0.01" value={f.laborCost} onChange={(e) => set("laborCost", Number(e.target.value))} /></Field>
+            <Field label="Mano de obra (S/)"><Input type="number" step="0.01" value={f.laborCost || ''} onChange={(e) => set("laborCost", Number(e.target.value))} /></Field>
             <div className="flex flex-col justify-end">
               <Label className="text-xs">Total general</Label>
               <div className="h-9 flex items-center justify-end rounded-md border border-border bg-secondary px-3 font-mono text-lg font-semibold text-primary">
@@ -221,7 +290,7 @@ export function MaintenanceFormDialog({ open, onOpenChange, recordId, prefill }:
           </div>
         </div>
 
-        <Section title="5. Resultado y Seguimiento">
+        <Section title="5. Resultado y Seguimiento" icon={CheckCircle2}>
           <Field label="Estado del equipo post-mantenimiento">
             <Input value={f.postState ?? ""} onChange={(e) => set("postState", e.target.value)} placeholder="Operativo / Requiere seguimiento…" />
           </Field>
@@ -246,7 +315,7 @@ export function MaintenanceFormDialog({ open, onOpenChange, recordId, prefill }:
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button
             onClick={submit}
-            className={prefill?.urgent && !existing ? "bg-red-600 hover:bg-red-700 text-white" : ""}
+            className={prefill?.urgent && !existing ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : ""}
           >
             {existing ? "Guardar cambios" : prefill?.urgent ? "Crear OTM Urgente" : "Crear OTM"}
           </Button>
@@ -256,10 +325,13 @@ export function MaintenanceFormDialog({ open, onOpenChange, recordId, prefill }:
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, icon: Icon, children }: { title: string; icon?: React.ComponentType<{ className?: string }>; children: ReactNode }) {
   return (
     <div className="border-t border-border pt-4">
-      <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">{title}</div>
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {Icon && <Icon className="h-3.5 w-3.5" />}
+        {title}
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">{children}</div>
     </div>
   );

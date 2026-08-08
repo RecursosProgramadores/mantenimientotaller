@@ -255,22 +255,22 @@ function Dashboard() {
                   <div className="flex-1 h-2 rounded-full bg-border overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${
-                        status === "critical" ? "bg-red-500" :
-                        status === "warning" ? "bg-amber-500" :
-                        "bg-green-500"
+                        status === "critical" ? "bg-critical" :
+                        status === "warning" ? "bg-warning" :
+                        "bg-success"
                       }`}
                       style={{ width: `${Math.min(pct, 100)}%` }}
                     />
                   </div>
                   <span className={`text-xs font-mono w-10 text-right shrink-0 ${
-                    status === "critical" ? "text-red-400" :
-                    status === "warning" ? "text-amber-400" :
-                    "text-green-400"
+                    status === "critical" ? "text-critical" :
+                    status === "warning" ? "text-warning" :
+                    "text-success"
                   }`}>{pct}%</span>
                   <span className={`text-[10px] border rounded-full px-2 py-0.5 shrink-0 ${
-                    status === "critical" ? "border-red-500/40 text-red-400" :
-                    status === "warning" ? "border-amber-500/40 text-amber-400" :
-                    "border-green-500/40 text-green-400"
+                    status === "critical" ? "border-critical/40 text-critical" :
+                    status === "warning" ? "border-warning/40 text-warning" :
+                    "border-success/40 text-success"
                   }`}>
                     {status === "critical" ? "Crítico" : status === "warning" ? "Alerta" : "Normal"}
                   </span>
@@ -298,8 +298,8 @@ function Dashboard() {
                   return (
                     <li key={n.id} className="flex items-center gap-3 p-4">
                       {n.type === "critical"
-                        ? <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
-                        : <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />}
+                        ? <AlertCircle className="h-5 w-5 text-critical shrink-0" />
+                        : <AlertTriangle className="h-5 w-5 text-warning shrink-0" />}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           {machine && (
@@ -315,8 +315,8 @@ function Dashboard() {
                         href={`#/mantenimientos?machineId=${n.machineId}&typeId=t-correctivo&urgent=${n.type === "critical" ? "1" : "0"}`}
                         className={`inline-flex items-center justify-center h-7 shrink-0 rounded-md border px-3 text-xs font-medium transition-colors ${
                           n.type === "critical"
-                            ? "border-red-500/40 text-red-400 hover:bg-red-500/10"
-                            : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                            ? "border-critical/40 text-critical hover:bg-critical/10"
+                            : "border-warning/40 text-warning hover:bg-warning/10"
                         }`}
                       >
                         {n.type === "critical" ? "Crear OTM" : "Programar OTM"}

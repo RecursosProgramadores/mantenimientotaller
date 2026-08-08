@@ -1,11 +1,20 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MantePro — Gestión de Mantenimiento Industrial</title>
     <meta name="description" content="Sistema profesional de gestión de mantenimiento industrial: máquinas, mantenimientos, talleres y reportes." />
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('mantepro-theme');
+          var isDark = stored === 'dark' || (stored !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />

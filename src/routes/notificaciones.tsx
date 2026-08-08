@@ -40,25 +40,30 @@ function NotifIcon({ type, size = "md" }: { type: AppNotification["type"]; size?
   const cls = size === "md" ? "h-9 w-9" : "h-5 w-5";
   const wrap = size === "md" ? "flex h-10 w-10 items-center justify-center rounded-xl" : "flex";
   if (type === "critical")
-    return <div className={`${wrap} bg-red-500/15`}><AlertCircle className={`${cls} text-red-400`} /></div>;
+    return <div className={`${wrap} bg-critical/10`}><AlertCircle className={`${cls} text-critical`} /></div>;
   if (type === "warning")
-    return <div className={`${wrap} bg-amber-500/15`}><AlertTriangle className={`${cls} text-amber-400`} /></div>;
+    return <div className={`${wrap} bg-warning/10`}><AlertTriangle className={`${cls} text-warning`} /></div>;
   if (type === "reminder")
-    return <div className={`${wrap} bg-blue-500/15`}><Clock className={`${cls} text-blue-400`} /></div>;
-  return <div className={`${wrap} bg-green-500/15`}><CheckCircle className={`${cls} text-green-400`} /></div>;
+    return <div className={`${wrap} bg-info/10`}><Clock className={`${cls} text-info`} /></div>;
+  return <div className={`${wrap} bg-success/10`}><CheckCircle className={`${cls} text-success`} /></div>;
 }
 
 function borderColor(type: AppNotification["type"]): string {
-  if (type === "critical") return "border-l-red-500";
-  if (type === "warning") return "border-l-amber-500";
-  if (type === "reminder") return "border-l-blue-500";
-  return "border-l-green-500";
+  if (type === "critical") return "border-l-critical";
+  if (type === "warning") return "border-l-warning";
+  if (type === "reminder") return "border-l-info";
+  return "border-l-success";
 }
 
+// Los valores de actionType son los del enum `notification_action` en la
+// base de datos (crear_otm / programar_otm / ver_historial) — antes esta
+// función comparaba contra otros strings ("create-urgent-otm", etc.) que
+// nunca llegaban a coincidir con lo que realmente guarda la base de datos,
+// así que el botón de acción nunca se mostraba en las alertas automáticas.
 function actionLabel(type: AppNotification["type"], actionType?: string): string {
-  if (actionType === "create-urgent-otm") return "Crear OTM urgente";
-  if (actionType === "schedule-otm") return "Programar OTM";
-  if (actionType === "view-history") return "Ver historial";
+  if (actionType === "crear_otm") return "Crear OTM urgente";
+  if (actionType === "programar_otm") return "Programar OTM";
+  if (actionType === "ver_historial") return "Ver historial";
   return "";
 }
 
@@ -111,7 +116,7 @@ function NotificacionesPage() {
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-bold">Centro de Notificaciones</h1>
           {unreadCount > 0 && (
-            <span className="rounded-full bg-red-500/20 px-2.5 py-0.5 text-xs font-semibold text-red-400">
+            <span className="rounded-full bg-critical/10 px-2.5 py-0.5 text-xs font-semibold text-critical">
               {unreadCount} sin leer
             </span>
           )}
@@ -192,7 +197,7 @@ function NotificacionesPage() {
                 className={cn(
                   "flex gap-4 rounded-lg border border-l-4 p-4 transition-all",
                   borderColor(n.type),
-                  !n.read ? "bg-[#1E2130] border-border" : "bg-card border-border/50 opacity-70",
+                  !n.read ? "bg-primary/[0.03] border-border" : "bg-card border-border/50 opacity-70",
                   isSelected && "ring-1 ring-primary/40",
                 )}
               >
@@ -214,10 +219,10 @@ function NotificacionesPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={cn(
                           "text-sm font-semibold",
-                          n.type === "critical" ? "text-red-400"
-                          : n.type === "warning" ? "text-amber-400"
-                          : n.type === "reminder" ? "text-blue-400"
-                          : "text-green-400",
+                          n.type === "critical" ? "text-critical"
+                          : n.type === "warning" ? "text-warning"
+                          : n.type === "reminder" ? "text-info"
+                          : "text-success",
                         )}>
                           {n.title}
                         </span>
@@ -252,9 +257,9 @@ function NotificacionesPage() {
                         href={`#/mantenimientos?machineId=${n.machineId}&typeId=t-correctivo&urgent=${n.type === "critical" ? "1" : "0"}`}
                         className={cn(
                           "inline-flex items-center justify-center rounded-md border h-7 px-3 text-xs font-medium transition-colors",
-                          n.type === "critical" && "border-red-500/40 text-red-400 hover:bg-red-500/10",
-                          n.type === "warning" && "border-amber-500/40 text-amber-400 hover:bg-amber-500/10",
-                          n.type === "reminder" && "border-blue-500/40 text-blue-400 hover:bg-blue-500/10",
+                          n.type === "critical" && "border-critical/40 text-critical hover:bg-critical/10",
+                          n.type === "warning" && "border-warning/40 text-warning hover:bg-warning/10",
+                          n.type === "reminder" && "border-info/40 text-info hover:bg-info/10",
                         )}
                         onClick={() => markNotificationRead(n.id)}
                       >

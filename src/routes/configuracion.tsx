@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMantePro } from "@/context/MantePro";
 import { Plus, Trash2, Pencil, Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { sanitizePhone } from "@/lib/format";
 
 export const Route = createFileRoute("/configuracion")({
   head: () => ({ meta: [{ title: "Configuración — MantePro" }, { name: "description", content: "Configuración general, usuarios, talleres y repuestos." }] }),
@@ -111,24 +112,29 @@ function Workshops() {
   const { workshops, addWorkshop, updateWorkshop, deleteWorkshop } = useMantePro();
   const [form, setForm] = useState({ name: "", contact: "", phone: "", specialty: "", address: "", machinesInService: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", contact: "", phone: "", specialty: "" });
+  // "address" faltaba aquí: el formulario de edición nunca la incluía, así
+  // que aunque la base de datos y addWorkshop/updateWorkshop sí la soportan,
+  // no había forma de escribirla ni verla desde este directorio — solo se
+  // podía guardar (a veces) desde el diálogo de "Enviar a taller".
+  const [editForm, setEditForm] = useState({ name: "", contact: "", phone: "", specialty: "", address: "" });
 
   return (
     <Card className="bg-card border-border">
       <CardHeader><CardTitle className="text-base">Directorio de talleres externos</CardTitle></CardHeader>
       <CardContent>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-2 mb-4">
           <Input placeholder="Nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input placeholder="Contacto" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
-          <Input placeholder="Teléfono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <Input placeholder="Teléfono" inputMode="numeric" maxLength={9} value={form.phone} onChange={(e) => setForm({ ...form, phone: sanitizePhone(e.target.value) })} />
           <Input placeholder="Especialidad" value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} />
+          <Input placeholder="Dirección" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           <Button onClick={() => { if (!form.name) return toast.error("Nombre requerido"); addWorkshop(form); setForm({ name: "", contact: "", phone: "", specialty: "", address: "", machinesInService: 0 }); toast.success("Agregado"); }}>
             <Plus className="h-4 w-4 mr-1" /> Agregar
           </Button>
         </div>
         <table className="w-full text-sm">
           <thead className="text-xs text-muted-foreground uppercase border-b border-border">
-            <tr><th className="text-left p-2">Nombre</th><th className="text-left p-2">Contacto</th><th className="text-left p-2">Teléfono</th><th className="text-left p-2">Especialidad</th><th /></tr>
+            <tr><th className="text-left p-2">Nombre</th><th className="text-left p-2">Contacto</th><th className="text-left p-2">Teléfono</th><th className="text-left p-2">Especialidad</th><th className="text-left p-2">Dirección</th><th /></tr>
           </thead>
           <tbody>
             {workshops.map((w) => (
@@ -137,8 +143,9 @@ function Workshops() {
                   <>
                     <td className="p-2"><Input className="h-8" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} /></td>
                     <td className="p-2"><Input className="h-8" value={editForm.contact} onChange={(e) => setEditForm({...editForm, contact: e.target.value})} /></td>
-                    <td className="p-2"><Input className="h-8" value={editForm.phone} onChange={(e) => setEditForm({...editForm, phone: e.target.value})} /></td>
+                    <td className="p-2"><Input className="h-8" inputMode="numeric" maxLength={9} value={editForm.phone} onChange={(e) => setEditForm({...editForm, phone: sanitizePhone(e.target.value)})} /></td>
                     <td className="p-2"><Input className="h-8" value={editForm.specialty} onChange={(e) => setEditForm({...editForm, specialty: e.target.value})} /></td>
+                    <td className="p-2"><Input className="h-8" value={editForm.address} onChange={(e) => setEditForm({...editForm, address: e.target.value})} /></td>
                     <td className="p-2 text-right">
                       <Button size="icon" variant="ghost" className="h-8 w-8 text-success" onClick={() => { updateWorkshop(w.id, editForm); setEditingId(null); toast.success("Guardado"); }}><Save className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
@@ -148,8 +155,9 @@ function Workshops() {
                   <>
                     <td className="p-2 font-medium">{w.name}</td><td className="p-2">{w.contact}</td>
                     <td className="p-2 font-mono text-xs">{w.phone}</td><td className="p-2">{w.specialty}</td>
+                    <td className="p-2 text-muted-foreground">{w.address || "—"}</td>
                     <td className="p-2 text-right min-w-[80px]">
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => { setEditingId(w.id); setEditForm({ name: w.name, contact: w.contact, phone: w.phone, specialty: w.specialty }); }}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => { setEditingId(w.id); setEditForm({ name: w.name, contact: w.contact, phone: w.phone, specialty: w.specialty, address: w.address || "" }); }}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" className="h-8 w-8 text-critical" onClick={() => deleteWorkshop(w.id)}><Trash2 className="h-4 w-4" /></Button>
                     </td>
                   </>
@@ -185,7 +193,7 @@ function Parts() {
         </div>
         <table className="w-full text-sm">
           <thead className="text-xs text-muted-foreground uppercase border-b border-border">
-            <tr><th className="text-left p-2">Nombre</th><th className="text-left p-2">Referencia</th><th className="text-left p-2">Proveedor</th><th className="text-right p-2">Stock Min</th><th className="text-right p-2">Precio</th><th /></tr>
+            <tr><th className="text-left p-2">Nombre</th><th className="text-left p-2">Referencia</th><th className="text-left p-2">Proveedor</th><th className="text-right p-2">Stock</th><th className="text-right p-2">Precio</th><th /></tr>
           </thead>
           <tbody>
             {spareParts.map((p) => (
@@ -195,8 +203,8 @@ function Parts() {
                     <td className="p-2"><Input className="h-8" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} /></td>
                     <td className="p-2"><Input className="h-8" value={editForm.reference} onChange={(e) => setEditForm({...editForm, reference: e.target.value})} /></td>
                     <td className="p-2"><Input className="h-8" value={editForm.supplier} onChange={(e) => setEditForm({...editForm, supplier: e.target.value})} /></td>
-                    <td className="p-2 text-right"><Input type="number" className="h-8 w-20 ml-auto" value={editForm.stock} onChange={(e) => setEditForm({...editForm, stock: Number(e.target.value)})} /></td>
-                    <td className="p-2 text-right"><Input type="number" className="h-8 w-24 ml-auto" value={editForm.price} onChange={(e) => setEditForm({...editForm, price: Number(e.target.value)})} /></td>
+                    <td className="p-2 text-right"><Input type="number" className="h-8 w-20 ml-auto" value={editForm.stock || ''} onChange={(e) => setEditForm({...editForm, stock: Number(e.target.value)})} /></td>
+                    <td className="p-2 text-right"><Input type="number" className="h-8 w-24 ml-auto" value={editForm.price || ''} onChange={(e) => setEditForm({...editForm, price: Number(e.target.value)})} /></td>
                     <td className="p-2 text-right min-w-[80px]">
                       <Button size="icon" variant="ghost" className="h-8 w-8 text-success" onClick={() => { updateSparePart(p.id, editForm); setEditingId(null); toast.success("Guardado"); }}><Save className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>

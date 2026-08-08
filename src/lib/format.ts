@@ -30,3 +30,11 @@ export function formatNumber(n?: number, fractionDigits = 0): string {
   const withSep = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return decPart ? `${withSep}.${decPart}` : withSep;
 }
+
+// Limpia un campo de teléfono mientras se escribe: solo dígitos, máximo 9
+// (celulares en Perú son de 9 dígitos). Usar en el onChange de cualquier
+// input de "Teléfono" del sistema para que no se puedan escribir letras ni
+// más de 9 números.
+export function sanitizePhone(raw: string): string {
+  return raw.replace(/\D/g, "").slice(0, 9);
+}

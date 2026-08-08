@@ -2,7 +2,7 @@ import { Settings } from "lucide-react";
 
 export function AppLoadingScreen() {
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center bg-[#0F1117] text-white" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+    <div className="flex h-screen w-full flex-col items-center justify-center bg-background text-foreground" style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -17,9 +17,9 @@ export function AppLoadingScreen() {
         }
       `}</style>
       <div className="flex flex-col items-center">
-        <Settings className="h-12 w-12 text-amber-500 animate-spin-slow mb-4" />
+        <Settings className="h-12 w-12 text-primary animate-spin-slow mb-4" />
         <h1 className="text-xl font-bold">MantePro</h1>
-        <p className="text-sm text-slate-400 mt-1">Cargando sistema...</p>
+        <p className="text-sm text-muted-foreground mt-1">Cargando sistema...</p>
       </div>
     </div>
   );

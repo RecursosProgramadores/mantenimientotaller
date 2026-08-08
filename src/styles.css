@@ -51,79 +51,105 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 
-  /* MantePro industrial dark palette */
-  --background: oklch(0.18 0.012 260);          /* #0F1117 */
-  --foreground: oklch(0.96 0.005 250);
-  --card: oklch(0.23 0.014 260);                /* #1A1D27 */
-  --card-foreground: oklch(0.96 0.005 250);
-  --popover: oklch(0.23 0.014 260);
-  --popover-foreground: oklch(0.96 0.005 250);
-  --primary: oklch(0.78 0.16 70);               /* amber #F59E0B */
-  --primary-foreground: oklch(0.18 0.012 260);
-  --secondary: oklch(0.28 0.018 260);
-  --secondary-foreground: oklch(0.96 0.005 250);
-  --muted: oklch(0.26 0.014 260);
-  --muted-foreground: oklch(0.68 0.018 260);
-  --accent: oklch(0.65 0.18 255);               /* blue #3B82F6 */
-  --accent-foreground: oklch(0.98 0.005 250);
-  --destructive: oklch(0.62 0.22 25);
-  --destructive-foreground: oklch(0.98 0.005 250);
-  --border: oklch(0.32 0.014 260);              /* #2A2D3A */
-  --input: oklch(0.30 0.014 260);
-  --ring: oklch(0.78 0.16 70);
+  /* ── MantePro — Enterprise Light (Stripe/Linear/Vercel inspired) ────────── */
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F1F5F9;
+  --accent-foreground: #0F172A;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #2563EB;
 
-  --success: oklch(0.72 0.17 150);
-  --warning: oklch(0.82 0.16 90);
-  --info: oklch(0.65 0.18 255);
-  --critical: oklch(0.62 0.22 25);
+  --success: #16A34A;
+  --warning: #D97706;
+  --info: #0284C7;
+  --critical: #DC2626;
 
-  --chart-1: oklch(0.78 0.16 70);
-  --chart-2: oklch(0.65 0.18 255);
-  --chart-3: oklch(0.72 0.17 150);
-  --chart-4: oklch(0.62 0.22 25);
-  --chart-5: oklch(0.70 0.14 300);
+  --chart-1: #2563EB;
+  --chart-2: #16A34A;
+  --chart-3: #D97706;
+  --chart-4: #DC2626;
+  --chart-5: #64748B;
 
-  --sidebar: oklch(0.21 0.012 260);
-  --sidebar-foreground: oklch(0.92 0.005 250);
-  --sidebar-primary: oklch(0.78 0.16 70);
-  --sidebar-primary-foreground: oklch(0.18 0.012 260);
-  --sidebar-accent: oklch(0.28 0.018 260);
-  --sidebar-accent-foreground: oklch(0.96 0.005 250);
-  --sidebar-border: oklch(0.30 0.014 260);
-  --sidebar-ring: oklch(0.78 0.16 70);
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #2563EB;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #EFF6FF;
+  --sidebar-accent-foreground: #1D4ED8;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #2563EB;
+
+  --shadow-color: 222 47% 11%;
+  --shadow-sm: 0 1px 2px 0 hsl(var(--shadow-color) / 0.05);
+  --shadow: 0 1px 3px 0 hsl(var(--shadow-color) / 0.08), 0 1px 2px -1px hsl(var(--shadow-color) / 0.06);
+  --shadow-md: 0 4px 8px -2px hsl(var(--shadow-color) / 0.08), 0 2px 4px -2px hsl(var(--shadow-color) / 0.06);
+  --shadow-lg: 0 12px 24px -6px hsl(var(--shadow-color) / 0.10), 0 4px 8px -4px hsl(var(--shadow-color) / 0.06);
 }
 
 .dark {
-  /* same dark palette */
-  --background: oklch(0.18 0.012 260);
-  --foreground: oklch(0.96 0.005 250);
-  --card: oklch(0.23 0.014 260);
-  --card-foreground: oklch(0.96 0.005 250);
-  --popover: oklch(0.23 0.014 260);
-  --popover-foreground: oklch(0.96 0.005 250);
-  --primary: oklch(0.78 0.16 70);
-  --primary-foreground: oklch(0.18 0.012 260);
-  --secondary: oklch(0.28 0.018 260);
-  --secondary-foreground: oklch(0.96 0.005 250);
-  --muted: oklch(0.26 0.014 260);
-  --muted-foreground: oklch(0.68 0.018 260);
-  --accent: oklch(0.65 0.18 255);
-  --accent-foreground: oklch(0.98 0.005 250);
-  --destructive: oklch(0.62 0.22 25);
-  --destructive-foreground: oklch(0.98 0.005 250);
-  --border: oklch(0.32 0.014 260);
-  --input: oklch(0.30 0.014 260);
-  --ring: oklch(0.78 0.16 70);
-  --sidebar: oklch(0.21 0.012 260);
-  --sidebar-foreground: oklch(0.92 0.005 250);
-  --sidebar-primary: oklch(0.78 0.16 70);
-  --sidebar-primary-foreground: oklch(0.18 0.012 260);
-  --sidebar-accent: oklch(0.28 0.018 260);
-  --sidebar-accent-foreground: oklch(0.96 0.005 250);
-  --sidebar-border: oklch(0.30 0.014 260);
-  --sidebar-ring: oklch(0.78 0.16 70);
+  /* Variante oscura del mismo sistema: fondos slate/navy profundos (nunca negro
+     puro) pensados para jornadas largas, con el mismo contraste y jerarquía
+     que la variante clara. */
+  --background: #0F172A;
+  --foreground: #E2E8F0;
+  --card: #111827;
+  --card-foreground: #E2E8F0;
+  --popover: #111827;
+  --popover-foreground: #E2E8F0;
+  --primary: #3B82F6;
+  --primary-foreground: #0B1220;
+  --secondary: #1E293B;
+  --secondary-foreground: #E2E8F0;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --accent: #1E293B;
+  --accent-foreground: #E2E8F0;
+  --destructive: #EF4444;
+  --destructive-foreground: #0B1220;
+  --border: #1E293B;
+  --input: #1E293B;
+  --ring: #3B82F6;
+
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --info: #38BDF8;
+  --critical: #EF4444;
+
+  --chart-1: #3B82F6;
+  --chart-2: #22C55E;
+  --chart-3: #F59E0B;
+  --chart-4: #EF4444;
+  --chart-5: #94A3B8;
+
+  --sidebar: #0F172A;
+  --sidebar-foreground: #E2E8F0;
+  --sidebar-primary: #3B82F6;
+  --sidebar-primary-foreground: #0B1220;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #93C5FD;
+  --sidebar-border: #1E293B;
+  --sidebar-ring: #3B82F6;
+
+  --shadow-color: 0 0% 0%;
+  --shadow-sm: 0 1px 2px 0 hsl(var(--shadow-color) / 0.30);
+  --shadow: 0 1px 3px 0 hsl(var(--shadow-color) / 0.40), 0 1px 2px -1px hsl(var(--shadow-color) / 0.30);
+  --shadow-md: 0 4px 8px -2px hsl(var(--shadow-color) / 0.45), 0 2px 4px -2px hsl(var(--shadow-color) / 0.30);
+  --shadow-lg: 0 12px 24px -6px hsl(var(--shadow-color) / 0.55), 0 4px 8px -4px hsl(var(--shadow-color) / 0.35);
 }
 
 @layer base {
@@ -140,56 +166,63 @@
   .font-mono {
     font-family: var(--font-mono);
   }
+
+  /* ── Theme transition ─────────────────────────────────────────────────────
+     Cambio suave (~200ms) al alternar claro/oscuro. Elementos con su propia
+     utilidad transition-* (botones, hovers, etc.) mantienen su timing propio
+     porque una clase aplicada directamente pesa más que este selector *. */
+  *, *::before, *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow, opacity;
+    transition-duration: 200ms;
+    transition-timing-function: ease;
+  }
 }
 
-/* ── Usage Alert Animations ────────────────────────────────────────────────── */
-@keyframes pulse-amber {
-  0%, 100% { box-shadow: 0 0 6px #F59E0B44; }
-  50%       { box-shadow: 0 0 16px #F59E0BAA; }
+/* ── Usage Alert States ───────────────────────────────────────────────────────
+   Tratamiento sobrio: borde izquierdo de color + fondo apenas teñido, sin
+   brillos ni animaciones de pulso (evita el look "generado por IA"). */
+.machine-card-critical {
+  border-left: 3px solid var(--critical);
+  background-color: color-mix(in oklab, var(--critical) 4%, var(--card));
 }
 
-@keyframes pulse-red {
-  0%, 100% { box-shadow: 0 0 8px #EF444444; }
-  50%       { box-shadow: 0 0 20px #EF4444CC; }
+.machine-card-warning {
+  border-left: 3px solid var(--warning);
+  background-color: color-mix(in oklab, var(--warning) 4%, var(--card));
 }
 
-@keyframes pulse-green {
-  0%, 100% { box-shadow: 0 0 4px #22C55E22; }
-  50%       { box-shadow: 0 0 10px #22C55E66; }
+.machine-card-normal {
+  border-left: 3px solid var(--success);
 }
 
 @keyframes dot-pulse {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.3; }
+  50%       { opacity: 0.35; }
 }
 
-/* Machine card alert states */
-.machine-card-critical {
-  animation: pulse-red 0.8s ease-in-out infinite;
-}
-
-.machine-card-warning {
-  animation: pulse-amber 2s ease-in-out infinite;
-}
-
-.machine-card-normal {
-  animation: pulse-green 3s ease-in-out infinite;
-}
-
-/* Alert indicator dots */
+/* Puntos indicadores pequeños (notificaciones, estado en vivo): sutil, no llamativo */
 .animate-pulse-fast {
-  animation: dot-pulse 0.8s ease-in-out infinite;
+  animation: dot-pulse 1.4s ease-in-out infinite;
 }
 
 .animate-pulse-medium {
-  animation: dot-pulse 2s ease-in-out infinite;
+  animation: dot-pulse 2.2s ease-in-out infinite;
 }
 
 .animate-pulse-slow {
   animation: dot-pulse 3s ease-in-out infinite;
 }
 
-/* FAB button */
+/* FAB — botón de acción flotante, sobrio (sin pulso ni glow) */
 .fab-amber {
-  animation: pulse-amber 2s ease-in-out infinite;
+  box-shadow: 0 4px 12px -2px color-mix(in oklab, var(--primary) 35%, transparent);
 }
+
+/* ── Elevación adaptativa por tema ────────────────────────────────────────
+   Sustituye la sombra fija de Tailwind por una que se ajusta entre claro
+   (sutil) y oscuro (más profunda, para mantener separación de superficies
+   sin recurrir a bordes brillantes). */
+.shadow-elevation-sm { box-shadow: var(--shadow-sm); }
+.shadow-elevation { box-shadow: var(--shadow); }
+.shadow-elevation-md { box-shadow: var(--shadow-md); }
+.shadow-elevation-lg { box-shadow: var(--shadow-lg); }

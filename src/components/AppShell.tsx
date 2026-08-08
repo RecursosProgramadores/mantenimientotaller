@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useMantePro } from "@/context/MantePro";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { toast } from "sonner";
@@ -102,12 +103,12 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
                 )}
                 {/* Unread badge on Notifications sidebar item */}
                 {isNotif && unreadCount > 0 && !collapsed && (
-                  <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                  <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[9px] font-semibold text-destructive-foreground">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
                 {isNotif && unreadCount > 0 && collapsed && (
-                  <span className="absolute left-8 top-1 h-2 w-2 rounded-full bg-red-500" />
+                  <span className="absolute left-8 top-1 h-2 w-2 rounded-full bg-destructive" />
                 )}
               </Link>
             );
@@ -150,13 +151,15 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
               className="w-80 pl-8 bg-card border-border"
             />
           </form>
+          {/* Theme toggle */}
+          <ThemeToggle />
           {/* Functional notification bell */}
           <NotificationBell />
           <div className="flex items-center pl-2 border-l border-border">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-9 px-2 flex items-center gap-2 hover:bg-secondary/50 outline-none">
-                  <div className="grid h-7 w-7 place-items-center rounded-full bg-amber-500/20 text-amber-500 font-bold text-xs shrink-0">
+                <Button variant="ghost" className="h-9 px-2 flex items-center gap-2 hover:bg-secondary outline-none">
+                  <div className="grid h-7 w-7 place-items-center rounded-full bg-primary/10 text-primary font-semibold text-xs shrink-0">
                     {user?.name?.substring(0, 2).toUpperCase() || "US"}
                   </div>
                   <div className="hidden sm:block text-left leading-tight">
@@ -165,31 +168,31 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
                   <ChevronDown className="h-4 w-4 text-muted-foreground ml-1 hidden sm:block" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-[#1A1D27] border-[#2A2D3A] shadow-xl rounded-xl">
-                <DropdownMenuLabel className="font-normal flex items-center gap-3 py-3 px-3">
-                  <div className="grid h-8 w-8 place-items-center rounded-full bg-amber-500/20 text-amber-500 font-bold text-xs shrink-0">
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal flex items-center gap-3 py-2.5 px-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-primary font-semibold text-xs shrink-0">
                     {user?.name?.substring(0, 2).toUpperCase() || "US"}
                   </div>
-                  <div className="flex flex-col space-y-0.5">
-                    <p className="text-sm font-medium leading-none text-white">{user?.name}</p>
-                    <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500 w-fit mt-1">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none text-foreground">{user?.name}</p>
+                    <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary w-fit">
                       {user?.role}
                     </span>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-[#2A2D3A]" />
-                <DropdownMenuItem disabled className="text-slate-300 py-2.5 cursor-not-allowed">
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled className="py-2 cursor-not-allowed">
                   <User className="mr-2 h-4 w-4" />
                   <span>Mi perfil (Próximamente)</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className="text-slate-300 py-2.5 cursor-pointer focus:bg-[#2A2D3A] focus:text-white">
+                <DropdownMenuItem asChild className="py-2 cursor-pointer">
                   <Link to="/configuracion">
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Configuración</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-[#2A2D3A]" />
-                <DropdownMenuItem onClick={logout} className="text-red-400 py-2.5 cursor-pointer focus:bg-red-500/10 focus:text-red-400">
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="py-2 cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Cerrar sesión</span>
                 </DropdownMenuItem>

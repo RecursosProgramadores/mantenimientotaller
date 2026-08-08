@@ -194,7 +194,7 @@ function TypeDialog({ open, onOpenChange, initial, onSave }: {
                 {f.activities.map((a) => (
                   <div key={a.id} className="grid grid-cols-[1fr_90px_140px_36px] gap-2 items-center">
                     <Input placeholder="Actividad" value={a.text} onChange={(e) => updActivity(a.id, { text: e.target.value })} />
-                    <Input type="number" placeholder="min" value={a.durationMin} onChange={(e) => updActivity(a.id, { durationMin: Number(e.target.value) })} />
+                    <Input type="number" placeholder="min" value={a.durationMin || ''} onChange={(e) => updActivity(a.id, { durationMin: Number(e.target.value) })} />
                     <Input placeholder="Responsable" value={a.role} onChange={(e) => updActivity(a.id, { role: e.target.value })} />
                     <Button size="sm" variant="ghost" className="text-critical" onClick={() => rmActivity(a.id)}><X className="h-4 w-4" /></Button>
                   </div>

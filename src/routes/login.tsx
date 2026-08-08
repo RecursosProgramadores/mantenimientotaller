@@ -1,12 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, FormEvent, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Settings, Mail, Lock, Eye, EyeOff, XCircle, Loader2 } from "lucide-react";
+import { Settings, Mail, Lock, Eye, EyeOff, XCircle, Loader2, ShieldCheck } from "lucide-react";
 import portada from "@/assets/portada.jpeg";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
+
+const FEATURES = ["Control de equipos", "Alertas inteligentes", "Reportes KPI"];
 
 function LoginPage() {
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -28,10 +31,10 @@ function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
-    
+
     setIsLoading(true);
     setError(false);
-    
+
     const success = await login(email, password);
     if (success) {
       navigate({ to: "/" });
@@ -45,34 +48,36 @@ function LoginPage() {
   if (authLoading || isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen w-full bg-[#0F1117] font-sans text-white overflow-hidden">
-      
+    <div className="flex h-screen w-full bg-background font-sans text-foreground overflow-hidden">
+
       {/* LEFT COLUMN - Hidden on mobile */}
-      <div className="hidden md:flex relative w-1/2 h-full bg-gradient-to-t from-[#0F1117] to-[#1A1D27] flex-col justify-end">
-        <img 
-          src={portada} 
-          alt="MantePro Background" 
-          className="absolute inset-0 w-full h-full object-cover" 
+      <div className="hidden md:flex relative w-1/2 h-full flex-col justify-end">
+        <img
+          src={portada}
+          alt="MantePro"
+          className="absolute inset-0 w-full h-full object-cover"
         />
-        <div 
+        <div
           className="absolute inset-0"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)' }}
+          style={{ background: 'linear-gradient(to top, rgba(15,23,42,0.92) 0%, rgba(15,23,42,0.55) 55%, rgba(15,23,42,0.25) 100%)' }}
         />
-        
+
         <div className="relative z-10 p-12 pb-16">
           <div className="flex items-center gap-3 mb-4">
-            <Settings className="h-10 w-10 text-amber-500" />
-            <h1 className="text-[28px] font-bold text-white tracking-tight">MantePro</h1>
+            <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground">
+              <Settings className="h-5 w-5" />
+            </div>
+            <h1 className="text-[26px] font-bold text-white tracking-tight">MantePro</h1>
           </div>
-          <p className="text-slate-400 text-sm mb-6 max-w-md">
+          <p className="text-slate-300 text-sm mb-6 max-w-md">
             Sistema de Gestión de Mantenimiento Industrial
           </p>
-          
-          <div className="flex flex-wrap gap-3">
-            {["⚙ Control de equipos", "🔔 Alertas inteligentes", "📊 Reportes KPI"].map(pill => (
-              <span 
-                key={pill} 
-                className="text-[12px] text-white px-3 py-1 rounded-full border border-white/12"
+
+          <div className="flex flex-wrap gap-2">
+            {FEATURES.map(pill => (
+              <span
+                key={pill}
+                className="text-[12px] text-white/90 px-3 py-1 rounded-full border border-white/15"
                 style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)' }}
               >
                 {pill}
@@ -83,57 +88,61 @@ function LoginPage() {
       </div>
 
       {/* RIGHT COLUMN - Form */}
-      <div className="w-full md:w-1/2 h-full flex flex-col relative items-center justify-center p-6 bg-[#0F1117]">
-        
+      <div className="w-full md:w-1/2 h-full flex flex-col relative items-center justify-center p-6 bg-background">
+
+        <ThemeToggle className="absolute top-6 right-6" />
+
         {/* Mobile Header (Hidden on Desktop) */}
         <div className="absolute top-6 left-6 md:hidden flex items-center gap-2">
-          <Settings className="h-6 w-6 text-amber-500" />
-          <span className="font-bold text-lg">MantePro</span>
+          <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+            <Settings className="h-4 w-4" />
+          </div>
+          <span className="font-bold text-base">MantePro</span>
         </div>
 
-        <div className="w-full max-w-[400px] px-0 md:px-8 py-10">
-          
+        <div className="w-full max-w-[380px] px-0 md:px-2 py-10">
+
           <div className="mb-8">
-            <span className="inline-block px-2 py-1 rounded text-amber-500 bg-amber-500/10 text-[11px] font-bold uppercase tracking-wider mb-4">
+            <span className="inline-block px-2 py-1 rounded text-primary bg-primary/10 text-[11px] font-semibold uppercase tracking-wider mb-4">
               Acceso al sistema
             </span>
-            <h2 className="text-[32px] font-bold text-white mb-2 leading-tight">Bienvenido</h2>
-            <p className="text-slate-400 text-[14px]">Ingresa tus credenciales para continuar</p>
+            <h2 className="text-[26px] font-bold text-foreground mb-1.5 leading-tight">Bienvenido</h2>
+            <p className="text-muted-foreground text-[14px]">Ingresa tus credenciales para continuar</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            
-            <div className="space-y-1.5 relative group">
-              <label className="text-[13px] font-medium text-slate-300">Correo electrónico</label>
+
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-foreground">Correo electrónico</label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10 pointer-events-none" />
-                <input 
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
+                <input
                   type="email"
-                  placeholder="admin@gmail.com"
+                  placeholder="nombre@empresa.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-12 bg-[#1A1D27] border border-[#2A2D3A] rounded-[10px] pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500 focus:ring-[3px] focus:ring-amber-500/15 transition-all duration-200"
+                  className="w-full h-11 bg-card border border-input rounded-md pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 transition-all duration-150"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5 relative group">
-              <label className="text-[13px] font-medium text-slate-300">Contraseña</label>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-foreground">Contraseña</label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10 pointer-events-none" />
-                <input 
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
+                <input
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 bg-[#1A1D27] border border-[#2A2D3A] rounded-[10px] pl-11 pr-11 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500 focus:ring-[3px] focus:ring-amber-500/15 transition-all duration-200 font-mono tracking-widest placeholder:tracking-normal"
+                  className="w-full h-11 bg-card border border-input rounded-md pl-11 pr-11 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 transition-all duration-150 font-mono tracking-widest placeholder:tracking-normal"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -142,12 +151,12 @@ function LoginPage() {
             </div>
 
             {error && (
-              <div 
-                className="flex items-start gap-2.5 p-3 rounded-lg bg-red-500/10 border border-red-500/25"
-                style={{ animation: 'slideDownFade 0.2s ease-out' }}
+              <div
+                className="flex items-start gap-2.5 p-3 rounded-md bg-critical/10 border border-critical/25"
+                style={{ animation: 'slideDownFade 0.15s ease-out' }}
               >
-                <XCircle className="h-[18px] w-[18px] text-red-500 shrink-0 mt-0.5" />
-                <p className="text-[13px] text-red-400 leading-snug">
+                <XCircle className="h-[18px] w-[18px] text-critical shrink-0 mt-0.5" />
+                <p className="text-[13px] text-critical leading-snug">
                   Credenciales incorrectas. Verifica tu correo y contraseña.
                 </p>
               </div>
@@ -156,10 +165,10 @@ function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full h-12 rounded-[10px] flex items-center justify-center text-[15px] font-semibold text-white transition-all duration-200 mt-2
-                ${isLoading 
-                  ? 'bg-amber-600/80 cursor-not-allowed opacity-80' 
-                  : 'bg-gradient-to-br from-[#F59E0B] to-[#D97706] hover:from-[#FBBF24] hover:to-[#F59E0B] hover:-translate-y-[1px] hover:shadow-[0_4px_20px_rgba(245,158,11,0.4)] active:translate-y-0 active:shadow-sm'
+              className={`w-full h-11 rounded-md flex items-center justify-center text-[14px] font-semibold text-primary-foreground transition-colors duration-150 mt-2
+                ${isLoading
+                  ? 'bg-primary/70 cursor-not-allowed'
+                  : 'bg-primary hover:bg-primary/90'
                 }`}
             >
               {isLoading ? (
@@ -171,15 +180,15 @@ function LoginPage() {
                 "Iniciar sesión"
               )}
             </button>
-            
+
           </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-800 relative">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#0F1117] px-3 text-[12px] text-slate-600 font-medium">
+          <div className="mt-8 pt-6 border-t border-border relative">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-[12px] text-muted-foreground font-medium">
               Sistema protegido
             </div>
-            <div className="flex items-center justify-center gap-1.5 text-slate-500 text-[12px]">
-              <Lock className="h-3.5 w-3.5" />
+            <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-[12px]">
+              <ShieldCheck className="h-3.5 w-3.5" />
               <span>Tus datos están protegidos</span>
             </div>
           </div>
@@ -187,7 +196,7 @@ function LoginPage() {
         </div>
 
         {/* Footer */}
-        <div className="absolute bottom-6 left-0 right-0 text-center text-slate-600 text-[12px]">
+        <div className="absolute bottom-6 left-0 right-0 text-center text-muted-foreground/70 text-[12px]">
           MantePro © 2026 · Gestión de Mantenimiento Industrial
         </div>
 

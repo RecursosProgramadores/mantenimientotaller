@@ -170,7 +170,7 @@ function Page() {
           main { padding: 0 !important; }
           .print-area .bg-card { background: white !important; border: 1px solid #ccc !important; }
           .print-area * { color: black !important; }
-          .print-area .text-primary { color: #b45309 !important; }
+          .print-area .text-primary { color: #2563EB !important; }
         }
       `}</style>
     </AppShell>

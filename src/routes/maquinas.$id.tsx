@@ -133,6 +133,7 @@ function MachineDetail() {
             <Info label="Año de Adquisición" value={machine.acquisitionYear?.toString()} mono />
             <Info label="Antigüedad" value={age} mono />
             <Info label="Área / Ubicación" value={machine.area || machine.location} />
+            <Info label="Facultad / Departamento" value={machine.department} />
             <Info label="Potencia del Motor" value={machine.powerKw ? `${machine.powerKw} kW` : undefined} mono />
             <Info label="Voltaje de Operación" value={machine.voltageV ? `${machine.voltageV} V` : undefined} mono />
             <Info label="Horas de Operación Anual" value={machine.annualHours?.toString()} mono />

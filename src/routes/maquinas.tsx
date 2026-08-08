@@ -15,7 +15,7 @@ import { CriticalityBadge } from "@/components/CriticalityBadge";
 import { MachineFormDialog } from "@/components/MachineFormDialog";
 import { useMantePro, getMachineAlertStatus, getMachineUsagePct, type Machine } from "@/context/MantePro";
 import {
-  Plus, Trash2, Factory, Search, LayoutGrid, List, Eye, Wrench, Store, Printer, AlertTriangle,
+  Plus, Trash2, Factory, Search, LayoutGrid, List, Eye, Wrench, Printer, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { printInventory } from "@/lib/print-machines";
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/maquinas")({
 type SortKey = "name" | "code" | "lastMaint" | "criticality";
 
 function MachinesPage() {
-  const { machines, records, deleteMachine, updateMachine, settings, usageCycles, usageLogs } = useMantePro();
+  const { machines, records, deleteMachine, settings, usageCycles, usageLogs } = useMantePro();
   const [q, setQ] = useState("");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [status, setStatus] = useState<string>("todos");
@@ -70,11 +70,6 @@ function MachinesPage() {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [machines, records, q, status, area, sort]);
-
-  const sendToWorkshop = (m: Machine) => {
-    updateMachine(m.id, { status: "En Taller" });
-    toast.success(`${m.code} enviada a taller externo`);
-  };
 
   const childMatches = useChildMatches();
 
@@ -148,8 +143,8 @@ function MachinesPage() {
             const overBy = cycle && m.threshold ? Math.max(0, (Number(cycle.horasAcumuladas) || 0) - m.threshold.horasCiclo) : 0;
             const daysSince = lm ? Math.floor((Date.now() - new Date(lm.date).getTime()) / 86400000) : null;
             const cardBorder =
-              alertStatus === "critical" ? "border-red-500/50 machine-card-critical" :
-              alertStatus === "warning" ? "border-amber-500/40 machine-card-warning" :
+              alertStatus === "critical" ? "border-critical/50 machine-card-critical" :
+              alertStatus === "warning" ? "border-warning/40 machine-card-warning" :
               "border-border machine-card-normal hover:border-primary/40";
             return (
               <Card key={m.id} className={`bg-card transition-colors relative overflow-hidden ${cardBorder}`}>
@@ -160,9 +155,9 @@ function MachinesPage() {
                         {m.code}
                         {/* Alert dot */}
                         <span className={`inline-block h-2 w-2 rounded-full ${
-                          alertStatus === "critical" ? "bg-red-500 animate-pulse-fast" :
-                          alertStatus === "warning" ? "bg-amber-500 animate-pulse-medium" :
-                          "bg-green-500 animate-pulse-slow"
+                          alertStatus === "critical" ? "bg-critical animate-pulse-fast" :
+                          alertStatus === "warning" ? "bg-warning animate-pulse-medium" :
+                          "bg-success animate-pulse-slow"
                         }`} />
                       </div>
                       <div className="font-semibold truncate">{m.name}</div>
@@ -184,16 +179,16 @@ function MachinesPage() {
                     <div className="mt-2">
                       <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                         <span>Ciclo actual (uso)</span>
-                        <span className={alertStatus === "critical" ? "text-red-400" : alertStatus === "warning" ? "text-amber-400" : "text-green-400"}>
+                        <span className={alertStatus === "critical" ? "text-critical" : alertStatus === "warning" ? "text-warning" : "text-success"}>
                           {Number(cycle?.horasAcumuladas || 0).toFixed(2)}h / {m.threshold.horasCiclo}h
                         </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-border overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
-                            alertStatus === "critical" ? "bg-red-500" :
-                            alertStatus === "warning" ? "bg-amber-500" :
-                            "bg-green-500"
+                            alertStatus === "critical" ? "bg-critical" :
+                            alertStatus === "warning" ? "bg-warning" :
+                            "bg-success"
                           }`}
                           style={{ width: `${Math.min(usagePct, 100)}%` }}
                         />
@@ -203,15 +198,14 @@ function MachinesPage() {
                   <div className="mt-3 flex items-center justify-between gap-1 border-t border-border pt-3">
                     <Button asChild size="sm" variant="ghost"><Link to="/maquinas/$id" params={{ id: m.id }}><Eye className="h-4 w-4 mr-1" /> Ver</Link></Button>
                     <Button asChild size="sm" variant="ghost"><Link to="/mantenimientos"><Wrench className="h-4 w-4 mr-1" /> Mant.</Link></Button>
-                    <Button size="sm" variant="ghost" onClick={() => sendToWorkshop(m)}><Store className="h-4 w-4 mr-1" /> Taller</Button>
                     <DeleteBtn onConfirm={() => { deleteMachine(m.id); toast.success("Eliminada"); }} code={m.code} />
                   </div>
                 </CardContent>
                 {/* Critical warning banner */}
                 {alertStatus === "critical" && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5" style={{ background: "#EF444420" }}>
-                    <AlertTriangle className="h-3 w-3 text-red-400 shrink-0" />
-                    <span className="text-[11px] text-red-400">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-critical/10 border-t border-critical/20">
+                    <AlertTriangle className="h-3 w-3 text-critical shrink-0" />
+                    <span className="text-[11px] text-critical">
                       Mantenimiento requerido · {overBy.toFixed(1)}h sobre límite{daysSince !== null ? ` · ${daysSince} días sin mant.` : ""}
                     </span>
                   </div>
@@ -265,6 +259,7 @@ function MachinesPage() {
       )}
 
       <MachineFormDialog open={open} onOpenChange={setOpen} machine={editing} />
+
       <Outlet />
     </AppShell>
   );

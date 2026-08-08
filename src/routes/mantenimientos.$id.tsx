@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMantePro, typeColorClass, type RecordStatus } from "@/context/MantePro";
 import { MaintenanceFormDialog } from "@/components/MaintenanceFormDialog";
 import { ArrowLeft, Printer, Pencil, Check, X, Play } from "lucide-react";
-import { toast } from "sonner";
 import { formatDate, formatDateLong } from "@/lib/format";
 
 export const Route = createFileRoute("/mantenimientos/$id")({
@@ -49,10 +48,12 @@ function Detail() {
   const laborTotal = Number(r.laborCost) || 0;
   const grandTotal = partsTotal + laborTotal;
 
-  const changeStatus = (s: RecordStatus) => { 
+  const changeStatus = async (s: RecordStatus) => {
     if (!s) return;
-    updateRecord(r.id, { status: s }); 
-    toast.success(`Estado cambiado a: ${s}`); 
+    // updateRecord ya muestra su propio toast de éxito/error según lo que
+    // realmente pase en la base de datos — no duplicar aquí un mensaje de
+    // éxito a ciegas antes de saber si el guardado funcionó.
+    await updateRecord(r.id, { status: s });
   };
 
   return (
@@ -209,7 +210,7 @@ function Detail() {
           main { padding: 0 !important; }
           .print-area * { color: black !important; }
           .print-area .bg-card { background: white !important; border: 1px solid #ccc !important; }
-          .print-area .text-primary { color: #b45309 !important; }
+          .print-area .text-primary { color: #2563EB !important; }
         }
       `}</style>
     </AppShell>

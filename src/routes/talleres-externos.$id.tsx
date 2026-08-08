@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,10 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useMantePro, type WorkshopRecordStatus } from "@/context/MantePro";
 import { DocumentUploader } from "@/components/DocumentUploader";
 import { formatDate } from "@/lib/format";
-import { ArrowLeft, Printer, Star } from "lucide-react";
+import { ArrowLeft, Printer, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/talleres-externos/$id")({
@@ -18,7 +22,8 @@ export const Route = createFileRoute("/talleres-externos/$id")({
 
 function Detail() {
   const { id } = useParams({ from: "/talleres-externos/$id" });
-  const { workshopRecords, machines, updateWorkshopRecord, addWorkshopLog, addDocumentsToWorkshop, removeDocumentFromWorkshop, settings } = useMantePro();
+  const navigate = useNavigate();
+  const { workshopRecords, machines, updateWorkshopRecord, deleteWorkshopRecord, addWorkshopLog, addDocumentsToWorkshop, removeDocumentFromWorkshop, settings } = useMantePro();
   const r = workshopRecords.find((x) => x.id === id);
   const [note, setNote] = useState("");
   const [newStatus, setNewStatus] = useState<WorkshopRecordStatus | "">("");
@@ -30,7 +35,26 @@ function Detail() {
     <AppShell title={`Envío a Taller — ${m?.code}`}>
       <div className="flex items-center justify-between mb-4 print:hidden">
         <Link to="/talleres-externos"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Volver</Button></Link>
-        <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir Ficha</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Imprimir Ficha</Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="text-critical hover:text-critical border-critical/30"><Trash2 className="h-4 w-4 mr-1" /> Eliminar</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-card border-border">
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar este envío a taller?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se eliminará el envío de {m?.code} a {r.workshopName || "este taller"} y todo su historial de seguimiento. Si la máquina figura "En Taller", volverá a quedar "Operativo". Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { deleteWorkshopRecord(r.id); navigate({ to: "/talleres-externos" }); }}>Eliminar</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       <div id="print-area" className="space-y-4">
@@ -93,7 +117,7 @@ function Detail() {
           <CardContent className="space-y-4">
             <div className="grid sm:grid-cols-3 gap-3">
               <div><Label>Fecha real de retorno</Label><Input type="date" value={r.actualReturn ?? ""} onChange={(e) => updateWorkshopRecord(r.id, { actualReturn: e.target.value })} /></div>
-              <div><Label>Costo final (S/)</Label><Input type="number" value={r.finalCost ?? 0} onChange={(e) => updateWorkshopRecord(r.id, { finalCost: Number(e.target.value) })} /></div>
+              <div><Label>Costo final (S/)</Label><Input type="number" step="0.01" value={r.finalCost || ''} onChange={(e) => updateWorkshopRecord(r.id, { finalCost: Number(e.target.value) })} /></div>
               <div>
                 <Label>Calificación del servicio</Label>
                 <div className="flex gap-1 mt-2">
