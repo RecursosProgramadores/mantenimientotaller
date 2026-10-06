@@ -1,7 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, FormEvent, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Settings, Mail, Lock, Eye, EyeOff, XCircle, Loader2, ShieldCheck } from "lucide-react";
+import { Settings, Mail, Lock, Eye, EyeOff, XCircle, Loader2, ShieldCheck, GraduationCap } from "lucide-react";
 import portada from "@/assets/portada.jpeg";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -24,7 +24,7 @@ function LoginPage() {
   // If already logged in, redirect to dashboard
   useEffect(() => {
     if (isAuthenticated) {
-      navigate({ to: "/" });
+      navigate({ to: "/dashboard" });
     }
   }, [isAuthenticated, navigate]);
 
@@ -37,7 +37,7 @@ function LoginPage() {
 
     const success = await login(email, password);
     if (success) {
-      navigate({ to: "/" });
+      navigate({ to: "/dashboard" });
     } else {
       setError(true);
       setIsLoading(false);
@@ -192,6 +192,14 @@ function LoginPage() {
               <span>Tus datos están protegidos</span>
             </div>
           </div>
+
+          <Link
+            to="/registro-uso"
+            className="mt-4 flex items-center justify-center gap-2 h-10 rounded-md border border-dashed border-primary/30 text-primary text-[13px] font-medium hover:bg-primary/5 transition-colors"
+          >
+            <GraduationCap className="h-4 w-4" />
+            ¿Eres alumno? Registra el uso de una máquina aquí
+          </Link>
 
         </div>
 

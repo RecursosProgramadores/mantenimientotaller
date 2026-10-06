@@ -143,7 +143,7 @@ function Detail() {
             ) : (
               <div className="overflow-x-auto rounded-md border border-border">
                 <table className="w-full text-sm">
-                  <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
+                  <thead className="bg-secondary/60 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
                     <tr>
                       <th className="text-left p-2">Repuesto / Insumo</th>
                       <th className="text-right p-2">Cant.</th>

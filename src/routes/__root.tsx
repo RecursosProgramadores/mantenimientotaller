@@ -8,6 +8,7 @@ import {
 import { MantePoProvider, useMantePro } from "../context/MantePro";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { ThemeProvider } from "../context/ThemeContext";
+import { MuiThemeBridge } from "../components/MuiThemeBridge";
 import { Toaster } from "../components/ui/sonner";
 import { LoadingScreen } from "../components/LoadingScreen";
 import type { ReactNode } from "react";
@@ -96,16 +97,18 @@ function RootComponent() {
 
   return (
     <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <MantePoProvider>
-            <AppGate>
-              <Outlet />
-            </AppGate>
-            <Toaster />
-          </MantePoProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <MuiThemeBridge>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <MantePoProvider>
+              <AppGate>
+                <Outlet />
+              </AppGate>
+              <Toaster />
+            </MantePoProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </MuiThemeBridge>
     </ThemeProvider>
   );
 }

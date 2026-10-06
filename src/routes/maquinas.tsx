@@ -17,6 +17,7 @@ import { useMantePro, getMachineAlertStatus, getMachineUsagePct, type Machine } 
 import {
   Plus, Trash2, Factory, Search, LayoutGrid, List, Eye, Wrench, Printer, AlertTriangle,
 } from "lucide-react";
+import LinearProgress from "@mui/material/LinearProgress";
 import { toast } from "sonner";
 import { printInventory } from "@/lib/print-machines";
 
@@ -80,7 +81,7 @@ function MachinesPage() {
 
   return (
     <AppShell title="Máquinas">
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-5 rounded-xl border border-border bg-card/70 p-3 shadow-elevation-sm">
         <div className="relative flex-1 min-w-[220px] max-w-md">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por código, nombre o marca…" className="pl-8 bg-card" />
@@ -183,21 +184,17 @@ function MachinesPage() {
                           {Number(cycle?.horasAcumuladas || 0).toFixed(2)}h / {m.threshold.horasCiclo}h
                         </span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-border overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            alertStatus === "critical" ? "bg-critical" :
-                            alertStatus === "warning" ? "bg-warning" :
-                            "bg-success"
-                          }`}
-                          style={{ width: `${Math.min(usagePct, 100)}%` }}
-                        />
-                      </div>
+                      <LinearProgress
+                        variant="determinate"
+                        value={Math.min(usagePct, 100)}
+                        color={alertStatus === "critical" ? "error" : alertStatus === "warning" ? "warning" : "success"}
+                        sx={{ height: 6 }}
+                      />
                     </div>
                   )}
-                  <div className="mt-3 flex items-center justify-between gap-1 border-t border-border pt-3">
-                    <Button asChild size="sm" variant="ghost"><Link to="/maquinas/$id" params={{ id: m.id }}><Eye className="h-4 w-4 mr-1" /> Ver</Link></Button>
-                    <Button asChild size="sm" variant="ghost"><Link to="/mantenimientos"><Wrench className="h-4 w-4 mr-1" /> Mant.</Link></Button>
+                  <div className="mt-3 flex items-center gap-1.5 border-t border-border pt-3">
+                    <Button asChild size="sm" variant="outline" className="flex-1"><Link to="/maquinas/$id" params={{ id: m.id }}><Eye className="h-3.5 w-3.5 mr-1.5" /> Ver</Link></Button>
+                    <Button asChild size="sm" variant="outline" className="flex-1"><Link to="/mantenimientos"><Wrench className="h-3.5 w-3.5 mr-1.5" /> Mant.</Link></Button>
                     <DeleteBtn onConfirm={() => { deleteMachine(m.id); toast.success("Eliminada"); }} code={m.code} />
                   </div>
                 </CardContent>
@@ -218,7 +215,7 @@ function MachinesPage() {
         <Card className="bg-card border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
+              <thead className="bg-secondary/60 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
                 <tr>
                   <th className="text-left p-3">Código</th>
                   <th className="text-left p-3">Nombre</th>
@@ -235,7 +232,7 @@ function MachinesPage() {
                   const lm = lastMaint(m.id);
                   const nm = nextMaint(m.id);
                   return (
-                    <tr key={m.id} className="border-t border-border hover:bg-secondary/30">
+                    <tr key={m.id} className="border-t border-border/70 hover:bg-secondary/40 transition-colors">
                       <td className="p-3 font-mono text-primary">{m.code}</td>
                       <td className="p-3"><div className="font-medium">{m.name}</div><div className="text-xs text-muted-foreground">{m.brand} · {m.model}</div></td>
                       <td className="p-3">{m.area || m.location || "—"}</td>
@@ -245,7 +242,7 @@ function MachinesPage() {
                       <td className="p-3 whitespace-nowrap">{nm ? formatDate(nm.date) : "—"}</td>
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-1">
-                          <Button asChild size="sm" variant="ghost"><Link to="/maquinas/$id" params={{ id: m.id }}><Eye className="h-4 w-4" /></Link></Button>
+                          <Button asChild size="sm" variant="outline"><Link to="/maquinas/$id" params={{ id: m.id }}><Eye className="h-4 w-4" /></Link></Button>
                           <DeleteBtn onConfirm={() => { deleteMachine(m.id); toast.success("Eliminada"); }} code={m.code} />
                         </div>
                       </td>
@@ -269,7 +266,7 @@ function DeleteBtn({ onConfirm, code }: { onConfirm: () => void; code: string })
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button size="sm" variant="ghost" className="text-critical hover:text-critical"><Trash2 className="h-4 w-4" /></Button>
+        <Button size="sm" variant="outline" className="shrink-0 border-critical/30 text-critical hover:bg-critical/10 hover:text-critical hover:border-critical/50"><Trash2 className="h-4 w-4" /></Button>
       </AlertDialogTrigger>
       <AlertDialogContent className="bg-card border-border">
         <AlertDialogHeader>

@@ -126,7 +126,7 @@ Acción requerida: Mantenimiento correctivo inmediato. Ciclo de uso superado.`
 
   return (
     <AppShell title="Mantenimientos">
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-5 rounded-xl border border-border bg-card/70 p-3 shadow-elevation-sm">
         <div className="relative flex-1 min-w-[220px] max-w-md">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar OTM, máquina, técnico…" className="pl-8 bg-card" />
@@ -169,7 +169,7 @@ Acción requerida: Mantenimiento correctivo inmediato. Ciclo de uso superado.`
         <Card className="bg-card border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
+              <thead className="bg-secondary/60 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
                 <tr>
                   <th className="text-left p-3">N° OTM</th>
                   <th className="text-left p-3">Fecha</th>
@@ -188,7 +188,7 @@ Acción requerida: Mantenimiento correctivo inmediato. Ciclo de uso superado.`
                   const t = types.find((x) => x.id === r.typeId);
                   const dur = r.startTime && r.endTime ? hoursBetween(r.startTime, r.endTime) : null;
                   return (
-                    <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
+                    <tr key={r.id} className="border-t border-border/70 hover:bg-secondary/40 transition-colors">
                       <td className="p-3 font-mono text-primary">{r.otm}</td>
                       <td className="p-3 whitespace-nowrap">{formatDate(r.date)}</td>
                       <td className="p-3"><span className="font-mono text-xs text-primary">{m?.code}</span> · {m?.name}</td>

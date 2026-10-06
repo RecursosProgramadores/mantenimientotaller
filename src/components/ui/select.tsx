@@ -80,8 +80,19 @@ const SelectContent = React.forwardRef<
       <SelectPrimitive.Viewport
         className={cn(
           "p-1",
+          // OJO: NO fijar aquí una altura ligada a "--radix-select-trigger-height"
+          // (el snippet estándar de shadcn lo hace) — eso limita el viewport
+          // real a la altura del trigger (~40px) y aunque las opciones se ven
+          // "desbordando" visualmente, ese contenido ya no cuenta como scroll
+          // real: la rueda del mouse no mueve nada (el scrollHeight del
+          // contenedor apenas supera su clientHeight). Los botones de
+          // scroll arriba/abajo seguían funcionando porque mueven el
+          // scrollTop por JS directamente, lo que ocultaba el problema.
+          // Dejamos que el Viewport crezca con su contenido real; el
+          // overflow-y-auto + max-height ya están en SelectContent (arriba)
+          // y son los que de verdad recortan y hacen scrollable la lista.
           position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
+            "w-full min-w-[var(--radix-select-trigger-width)]",
         )}
       >
         {children}

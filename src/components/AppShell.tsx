@@ -2,7 +2,7 @@ import { type ReactNode, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Factory, Wrench, ClipboardList, Store,
-  FileText, BarChart3, Settings, Search, Menu, User, Timer, Bell, ChevronDown, LogOut
+  FileText, BarChart3, Settings, Search, Menu, User, Timer, Bell, ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMantePro } from "@/context/MantePro";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -18,17 +19,30 @@ import { useAuth } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { toast } from "sonner";
 
-const nav = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/maquinas", label: "Máquinas", icon: Factory },
-  { to: "/mantenimientos", label: "Mantenimientos", icon: Wrench },
-  { to: "/uso-maquinas", label: "Uso de Máquinas", icon: Timer },
-  { to: "/tipos-mantenimiento", label: "Tipos de Mantenimiento", icon: ClipboardList },
-  { to: "/talleres-externos", label: "Talleres Externos", icon: Store },
-  { to: "/fichas-tecnicas", label: "Fichas Técnicas", icon: FileText },
-  { to: "/reportes", label: "Reportes", icon: BarChart3 },
-  { to: "/notificaciones", label: "Notificaciones", icon: Bell },
-  { to: "/configuracion", label: "Configuración", icon: Settings },
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard };
+type NavGroup = { label: string | null; items: readonly NavItem[] };
+
+const navGroups: readonly NavGroup[] = [
+  { label: null, items: [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] },
+  {
+    label: "Gestión",
+    items: [
+      { to: "/maquinas", label: "Máquinas", icon: Factory },
+      { to: "/mantenimientos", label: "Mantenimientos", icon: Wrench },
+      { to: "/uso-maquinas", label: "Uso de Máquinas", icon: Timer },
+      { to: "/tipos-mantenimiento", label: "Tipos de Mantenimiento", icon: ClipboardList },
+      { to: "/talleres-externos", label: "Talleres Externos", icon: Store },
+      { to: "/fichas-tecnicas", label: "Fichas Técnicas", icon: FileText },
+    ],
+  },
+  {
+    label: "Análisis y sistema",
+    items: [
+      { to: "/reportes", label: "Reportes", icon: BarChart3 },
+      { to: "/notificaciones", label: "Notificaciones", icon: Bell },
+      { to: "/configuracion", label: "Configuración", icon: Settings },
+    ],
+  },
 ] as const;
 
 export function AppShell({ children, title }: { children: ReactNode; title: string }) {
@@ -52,8 +66,54 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
     toast(`Resultados: ${mc} máquinas · ${rc} mantenimientos · ${wc} talleres · ${dc} documentos`);
   };
 
+  const NavLink = ({ item }: { item: NavItem }) => {
+    const active = pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to));
+    const Icon = item.icon;
+    const isNotif = item.to === "/notificaciones";
+
+    const link = (
+      <Link
+        to={item.to}
+        onClick={() => setMobileOpen(false)}
+        className={cn(
+          "group relative flex items-center gap-2.5 rounded-lg py-1.5 text-sm transition-colors mb-0.5",
+          collapsed ? "justify-center px-0" : "px-2",
+          active ? "bg-primary/8 text-foreground font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent",
+        )}
+      >
+        <span
+          className={cn(
+            "grid h-8 w-8 shrink-0 place-items-center rounded-md transition-colors",
+            active ? "bg-primary text-primary-foreground shadow-elevation-sm" : "text-muted-foreground group-hover:text-foreground group-hover:bg-sidebar-accent",
+          )}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+        {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+        {isNotif && unreadCount > 0 && !collapsed && (
+          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold text-destructive-foreground">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+        {isNotif && unreadCount > 0 && collapsed && (
+          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive ring-2 ring-sidebar" />
+        )}
+      </Link>
+    );
+
+    if (!collapsed) return link;
+
+    return (
+      <Tooltip delayDuration={100}>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right" sideOffset={10}>{item.label}</TooltipContent>
+      </Tooltip>
+    );
+  };
+
   return (
     <ProtectedRoute>
+      <TooltipProvider>
       <div className="flex min-h-screen w-full bg-background text-foreground">
         {/* Sidebar */}
       <aside
@@ -63,11 +123,11 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
-        <div className="flex h-16 items-center gap-2 border-b border-border px-4">
+        <div className={cn("flex h-16 items-center gap-2 border-b border-border", collapsed ? "justify-center px-0" : "px-4")}>
           {settings?.institutionLogo ? (
             <img src={settings.institutionLogo} alt="Logo" className="h-9 w-9 shrink-0 rounded-md object-cover border border-border" />
           ) : (
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground font-bold">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground font-bold shadow-elevation-sm">
               {settings?.institutionName ? settings.institutionName.charAt(0).toUpperCase() : 'M'}
             </div>
           )}
@@ -80,48 +140,27 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
             </div>
           )}
         </div>
-        <nav className="flex-1 overflow-y-auto px-2 py-3">
-          {nav.map((item) => {
-            const active = pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to));
-            const Icon = item.icon;
-            const isNotif = item.to === "/notificaciones";
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors mb-0.5",
-                  active
-                    ? "bg-primary/15 text-primary border-l-2 border-primary"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground",
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && (
-                  <span className="flex-1 truncate">{item.label}</span>
-                )}
-                {/* Unread badge on Notifications sidebar item */}
-                {isNotif && unreadCount > 0 && !collapsed && (
-                  <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[9px] font-semibold text-destructive-foreground">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-                {isNotif && unreadCount > 0 && collapsed && (
-                  <span className="absolute left-8 top-1 h-2 w-2 rounded-full bg-destructive" />
-                )}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto px-2.5 py-3">
+          {navGroups.map((group, gi) => (
+            <div key={gi} className={cn(gi > 0 && "mt-4")}>
+              {group.label && !collapsed && (
+                <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  {group.label}
+                </div>
+              )}
+              {group.label && collapsed && <div className="mx-auto mb-2 h-px w-6 bg-border" />}
+              {group.items.map((item) => <NavLink key={item.to} item={item} />)}
+            </div>
+          ))}
         </nav>
-        <div className="border-t border-border p-3">
+        <div className="border-t border-border p-2.5">
           <Button
             variant="ghost"
             size="sm"
             className="w-full justify-start text-muted-foreground"
             onClick={() => setCollapsed((c) => !c)}
           >
-            <Menu className="h-4 w-4" />
+            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
             {!collapsed && <span className="ml-2">Colapsar</span>}
           </Button>
         </div>
@@ -143,12 +182,12 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
           </Button>
           <h1 className="text-base font-semibold tracking-tight truncate">{title}</h1>
           <form onSubmit={onSearch} className="ml-auto hidden md:flex relative">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar máquinas, registros, talleres…"
-              className="w-80 pl-8 bg-card border-border"
+              className="w-80 pl-9 rounded-full bg-secondary/60 border-transparent focus-visible:bg-card focus-visible:border-input"
             />
           </form>
           {/* Theme toggle */}
@@ -203,6 +242,7 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
     </div>
+    </TooltipProvider>
     </ProtectedRoute>
   );
 }

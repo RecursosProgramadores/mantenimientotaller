@@ -24,7 +24,7 @@ function DeleteRecordBtn({ onConfirm, workshopName, machineCode }: { onConfirm: 
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button size="sm" variant="ghost" className="text-critical hover:text-critical"><Trash2 className="h-3.5 w-3.5 mr-1" /> Eliminar</Button>
+        <Button size="sm" variant="outline" className="border-critical/30 text-critical hover:bg-critical/10 hover:text-critical hover:border-critical/50"><Trash2 className="h-3.5 w-3.5 mr-1" /> Eliminar</Button>
       </AlertDialogTrigger>
       <AlertDialogContent className="bg-card border-border">
         <AlertDialogHeader>
@@ -66,7 +66,7 @@ function Page() {
 
   return (
     <AppShell title="Talleres Externos">
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-5 rounded-xl border border-border bg-card/70 p-3 shadow-elevation-sm">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40 bg-card border-border"><SelectValue /></SelectTrigger>
           <SelectContent className="bg-popover border-border">
@@ -128,7 +128,7 @@ function Page() {
                       onConfirm={() => deleteWorkshopRecord(r.id)}
                     />
                     <Link to="/talleres-externos/$id" params={{ id: r.id }}>
-                      <Button size="sm" variant="ghost">Detalle <ArrowRight className="h-3.5 w-3.5 ml-1" /></Button>
+                      <Button size="sm" variant="outline">Detalle <ArrowRight className="h-3.5 w-3.5 ml-1" /></Button>
                     </Link>
                   </div>
                 </CardContent>
@@ -174,7 +174,7 @@ function Page() {
                     </div>
                     <div className="text-xs text-warning whitespace-nowrap">{days} días</div>
                     <Link to="/talleres-externos/$id" params={{ id: r.id }}>
-                      <Button size="sm" variant="ghost">Ver</Button>
+                      <Button size="sm" variant="outline">Ver</Button>
                     </Link>
                   </li>
                 );

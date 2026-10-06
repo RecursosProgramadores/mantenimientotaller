@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,76 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { FacultyCombobox } from "@/components/FacultyCombobox";
 import { useMantePro, getMachineAlertStatus, getMachineUsagePct, type UsageLog } from "@/context/MantePro";
-import { cn } from "@/lib/utils";
-import { Plus, Clock, RefreshCw, AlertTriangle, Printer, GraduationCap, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Clock, RefreshCw, AlertTriangle, Printer, GraduationCap, QrCode, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-
-// ── Facultades oficiales de la Universidad Nacional Hermilio Valdizán (UNHEVAL) — Huánuco, Perú ──
-const UNHEVAL_FACULTADES = [
-  "Ciencias Administrativas y Turismo",
-  "Ciencias Agrarias",
-  "Ciencias Contables y Financieras",
-  "Ciencias de la Educación",
-  "Ciencias Sociales",
-  "Derecho y Ciencias Políticas",
-  "Economía",
-  "Enfermería",
-  "Ingeniería Civil y Arquitectura",
-  "Ingeniería Industrial, de Sistemas y Mecatrónica",
-  "Medicina",
-  "Medicina Veterinaria y Zootecnia",
-  "Obstetricia",
-  "Psicología",
-] as const;
-
-// ── Buscador de facultad (combobox con filtro instantáneo) ────────────────────
-function FacultyCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          role="combobox"
-          aria-expanded={open}
-          className={cn(
-            "flex h-8 w-full cursor-pointer items-center justify-between gap-2 rounded-md border border-input bg-background px-2.5 text-xs transition-colors duration-150 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-            !value && "text-muted-foreground",
-          )}
-        >
-          <span className="truncate">{value || "Selecciona tu facultad…"}</span>
-          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
-          <CommandInput placeholder="Buscar facultad…" className="text-xs" />
-          <CommandList>
-            <CommandEmpty className="py-4 text-center text-xs text-muted-foreground">
-              No se encontró ninguna facultad.
-            </CommandEmpty>
-            <CommandGroup>
-              {UNHEVAL_FACULTADES.map((f) => (
-                <CommandItem
-                  key={f}
-                  value={f}
-                  onSelect={() => { onChange(f); setOpen(false); }}
-                  className="cursor-pointer text-xs"
-                >
-                  <Check className={cn("h-3.5 w-3.5 shrink-0", value === f ? "text-primary opacity-100" : "opacity-0")} />
-                  {f}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 export const Route = createFileRoute("/uso-maquinas")({
   head: () => ({
@@ -332,9 +266,15 @@ function RegisterModal({
       endAt: form.endAt,
       hours,
       operador: finalOperador,
+      tipoOperador: form.tipoOperador,
+      nombre: form.nombre.trim(),
+      dni: form.dni.trim(),
+      codigoAlumno: form.tipoOperador === "Alumno" ? form.codigoAlumno.trim() : undefined,
+      facultad: form.tipoOperador === "Alumno" ? form.facultad : undefined,
       turno: form.turno,
       observaciones: form.observaciones || undefined,
       registradoPor: "ING. JOHNNY BRYNNER VILCHEZ MIRANDA",
+      origen: "panel_admin",
     });
 
     const newAccum = (currentCycle?.horasAcumuladas ?? 0) + hours;
@@ -544,10 +484,35 @@ function UsoMaquinasPage() {
     return getMachineAlertStatus(c, m.threshold) === "warning";
   }).length;
 
+  const registroPublicoUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/mantenimientotaller/registro-uso`
+    : "/mantenimientotaller/registro-uso";
+
+  const copiarEnlace = async () => {
+    try {
+      await navigator.clipboard.writeText(registroPublicoUrl);
+      toast.success("Enlace copiado. Compártelo con los alumnos (chat, QR, cartel del taller…).");
+    } catch {
+      toast.error("No se pudo copiar el enlace. Cópialo manualmente: " + registroPublicoUrl);
+    }
+  };
+
   return (
     <AppShell title="Uso de Máquinas">
-      <div className="flex justify-end mb-4">
-        <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between mb-4 print:hidden">
+        <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs">
+          <QrCode className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-muted-foreground">
+            Autoregistro de alumnos: <span className="font-mono text-foreground">{registroPublicoUrl}</span>
+          </span>
+          <Button size="sm" variant="ghost" className="h-6 px-2" onClick={copiarEnlace}>
+            <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
+          </Button>
+          <Link to="/registro-uso" target="_blank" className="text-primary hover:underline flex items-center gap-1">
+            Abrir <ExternalLink className="h-3 w-3" />
+          </Link>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => window.print()}>
           <Printer className="h-4 w-4 mr-2" /> Imprimir Registro
         </Button>
       </div>
@@ -677,6 +642,7 @@ function UsoMaquinasPage() {
                     <th className="text-left p-3">Operador</th>
                     <th className="text-right p-3">Horas</th>
                     <th className="text-left p-3">Turno</th>
+                    <th className="text-left p-3">Origen</th>
                     <th className="text-left p-3">Observaciones</th>
                     <th className="text-left p-3">Registrado por</th>
                   </tr>
@@ -685,17 +651,37 @@ function UsoMaquinasPage() {
                   {filteredLogs.map((log) => {
                     const m = machines.find((x) => x.id === log.machineId);
                     return (
-                      <tr key={log.id} className="border-t border-border hover:bg-secondary/30">
+                      <tr key={log.id} className="border-t border-border/70 hover:bg-secondary/40 transition-colors">
                         <td className="p-3 font-mono whitespace-nowrap">{fmtDT(log.startAt)}</td>
                         <td className="p-3 font-mono whitespace-nowrap">{fmtDT(log.endAt)}</td>
                         <td className="p-3">
                           <span className="font-mono text-primary">{m?.code ?? "—"}</span>
                           <div className="text-[11px] text-muted-foreground truncate max-w-[120px]">{m?.name}</div>
                         </td>
-                        <td className="p-3">{log.operador}</td>
+                        <td className="p-3 max-w-[220px]">
+                          {log.tipoOperador === "Alumno" && log.nombre ? (
+                            <div>
+                              <div className="font-medium text-foreground truncate">{log.nombre} {log.apellido}</div>
+                              <div className="text-[11px] text-muted-foreground truncate">
+                                DNI {log.dni} · Cód. {log.codigoAlumno}{log.facultad ? ` · ${log.facultad}` : ""}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="truncate block">{log.operador}</span>
+                          )}
+                        </td>
                         <td className="p-3 text-right font-mono font-semibold">{log.hours}h</td>
                         <td className="p-3">
                           <span className="rounded-full border border-border px-2 py-0.5 text-[10px]">{log.turno}</span>
+                        </td>
+                        <td className="p-3">
+                          {log.origen === "publico" ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-info/15 text-info border border-info/30 px-2 py-0.5 text-[10px] font-medium">
+                              <QrCode className="h-2.5 w-2.5" /> Autoregistro
+                            </span>
+                          ) : (
+                            <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">Panel admin</span>
+                          )}
                         </td>
                         <td className="p-3 text-muted-foreground max-w-[180px] truncate">{log.observaciones ?? "—"}</td>
                         <td className="p-3 text-muted-foreground">{log.registradoPor}</td>

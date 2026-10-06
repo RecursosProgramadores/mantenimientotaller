@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CriticalityBadge } from "@/components/CriticalityBadge";
 import { StatusBadge } from "@/components/StatusBadge";
+import { DocumentUploader } from "@/components/DocumentUploader";
 import { useMantePro } from "@/context/MantePro";
-import { Printer, FileText, Paperclip, Download } from "lucide-react";
+import { Printer } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/fichas-tecnicas")({
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/fichas-tecnicas")({
 });
 
 function Page() {
-  const { machines, sheets } = useMantePro();
+  const { machines, sheets, addMachineDocuments, removeMachineDocument } = useMantePro();
   const [selected, setSelected] = useState<string>(machines[0]?.id ?? "");
   const machine = machines.find((m) => m.id === selected);
 
@@ -97,7 +98,7 @@ function Page() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
+                  <thead className="bg-secondary/60 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
                     <tr>
                       <th className="text-left p-3 w-12">N°</th>
                       <th className="text-left p-3">Componente</th>
@@ -133,30 +134,14 @@ function Page() {
           </Card>
         )}
 
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-border print:hidden">
           <CardHeader><CardTitle className="text-base">Documentos adjuntos</CardTitle></CardHeader>
           <CardContent>
-            {attached.length === 0 ? (
-              <div className="text-sm text-muted-foreground">Sin documentos adjuntos.</div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {attached.map((d) => (
-                  <li key={d.id} className="flex items-center gap-3 py-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{d.name}</div>
-                      <div className="text-xs text-muted-foreground">{d.category} · Subido el {formatDate(d.uploadedAt.slice(0,10))}</div>
-                    </div>
-                    <a href={d.dataUrl} download={d.name} target="_blank" rel="noreferrer">
-                      <Button size="sm" variant="ghost"><Download className="h-4 w-4" /></Button>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Button variant="ghost" size="sm" className="mt-3 print:hidden" onClick={() => toast("Subida de archivos próximamente")}>
-              <Paperclip className="h-4 w-4 mr-1" /> Adjuntar documento
-            </Button>
+            <DocumentUploader
+              documents={attached}
+              onAdd={(d) => addMachineDocuments(machine.id, d)}
+              onRemove={(docId) => { removeMachineDocument(machine.id, docId); toast.success("Documento eliminado"); }}
+            />
           </CardContent>
         </Card>
       </div>

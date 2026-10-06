@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "./AuthContext";
@@ -20,16 +20,28 @@ export interface MachineThreshold {
   operadoresIds: string[];      // assigned operator / technician IDs
 }
 
+export type OperatorType = "Alumno" | "Externo" | "Interno";
+export type UsageOrigin = "publico" | "panel_admin";
+
 export interface UsageLog {
   id: string;
   machineId: string;
   startAt: string;              // ISO datetime string
   endAt: string;                // ISO datetime string
   hours: number;
-  operador: string;
+  operador: string;             // resumen de texto (compatibilidad con registros antiguos)
+  tipoOperador: OperatorType;
+  nombre?: string;
+  apellido?: string;
+  dni?: string;
+  codigoAlumno?: string;
+  facultad?: string;
   turno: string;
   observaciones?: string;
   registradoPor: string;
+  // "publico" = autoregistro del alumno desde /registro-uso (sin login);
+  // "panel_admin" = cargado por un admin/técnico desde este panel.
+  origen: UsageOrigin;
 }
 
 export interface UsageCycle {
@@ -342,6 +354,12 @@ const mapDocCategory = (cat: string): string => {
 
 export function MantePoProvider({ children }: { children: ReactNode }) {
   const [machines, setMachines] = useState<Machine[]>(initialMachines);
+  // Ref con el último valor de `machines`: el canal realtime de abajo se crea
+  // una sola vez (efecto atado a isAuthenticated) y necesita la lista de
+  // máquinas más reciente para anunciar el código correcto sin volver a
+  // suscribirse en cada cambio de estado.
+  const machinesRef = useRef<Machine[]>(initialMachines);
+  useEffect(() => { machinesRef.current = machines; }, [machines]);
   const [types, setTypes] = useState<MaintenanceType[]>(initialTypes);
   const [records, setRecords] = useState<MaintenanceRecord[]>(initialRecords);
   const [workshops, setWorkshops] = useState<Workshop[]>(initialWorkshops);
@@ -507,7 +525,15 @@ export function MantePoProvider({ children }: { children: ReactNode }) {
       if (ulData) {
         setUsageLogs(ulData.map((u: any) => ({
           id: u.id, machineId: u.maquina_id, startAt: u.start_at, endAt: u.end_at, hours: u.horas,
-          operador: u.operador, turno: u.turno, observaciones: u.observaciones, registradoPor: "ING. JOHNNY BRYNNER VILCHEZ MIRANDA"
+          operador: u.operador, tipoOperador: u.tipo_operador || 'Interno',
+          nombre: u.alumno_nombre || undefined, apellido: u.alumno_apellido || undefined,
+          dni: u.alumno_dni || undefined, codigoAlumno: u.alumno_codigo || undefined, facultad: u.alumno_facultad || undefined,
+          turno: u.turno, observaciones: u.observaciones,
+          // Los autoregistros públicos (kiosco de alumnos, sin login) no tienen un
+          // usuario admin detrás — se etiquetan aparte en vez de atribuirlos al
+          // mismo responsable que carga manualmente los registros del panel.
+          registradoPor: u.origen === 'publico' ? 'Autoregistro (kiosco de alumnos)' : "ING. JOHNNY BRYNNER VILCHEZ MIRANDA",
+          origen: u.origen || 'panel_admin',
         })));
       }
 
@@ -551,6 +577,24 @@ export function MantePoProvider({ children }: { children: ReactNode }) {
     // REAL-TIME SUBSCRIPTIONS (STEP 9)
     const channel = supabase.channel('public_schema')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'uso_ciclos' }, (payload) => {
+         fetchAllData();
+      })
+      // Alta de un ciclo nuevo (primera vez que se usa una máquina recién creada):
+      // el upsert de tg_acumular_horas puede llegar como INSERT en vez de UPDATE.
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'uso_ciclos' }, (payload) => {
+         fetchAllData();
+      })
+      // Autoregistro público (o desde el panel): esto es lo que hace que un
+      // registro nuevo se vea AL INSTANTE en "Uso de Máquinas", sin refrescar
+      // la página — refresca los datos y avisa qué máquina lo recibió.
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'uso_logs' }, (payload) => {
+         const row: any = payload.new;
+         const m = machinesRef.current.find((x) => x.id === row.maquina_id);
+         const origenLabel = row.origen === 'publico' ? 'Autoregistro' : 'Panel admin';
+         const persona = row.alumno_nombre ? `${row.alumno_nombre} ${row.alumno_apellido ?? ''}`.trim() : null;
+         toast.success(`Nuevo registro de uso — ${m?.code ?? 'máquina'}`, {
+           description: `${origenLabel} · ${row.horas}h${persona ? ` · ${persona}` : ''}`,
+         });
          fetchAllData();
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificaciones' }, (payload) => {
@@ -1614,7 +1658,14 @@ export function MantePoProvider({ children }: { children: ReactNode }) {
       horas: log.hours,
       turno: log.turno,
       operador: log.operador,
-      observaciones: log.observaciones
+      observaciones: log.observaciones,
+      tipo_operador: log.tipoOperador,
+      alumno_nombre: log.nombre || null,
+      alumno_apellido: log.apellido || null,
+      alumno_dni: log.dni || null,
+      alumno_codigo: log.codigoAlumno || null,
+      alumno_facultad: log.facultad || null,
+      origen: log.origen,
     });
     if (error) {
       console.error("Error inserting uso_log:", error);

@@ -9,64 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UsoMaquinasRouteImport } from './routes/uso-maquinas'
-import { Route as TiposMantenimientoRouteImport } from './routes/tipos-mantenimiento'
-import { Route as TalleresExternosRouteImport } from './routes/talleres-externos'
-import { Route as ReportesRouteImport } from './routes/reportes'
-import { Route as NotificacionesRouteImport } from './routes/notificaciones'
-import { Route as MaquinasRouteImport } from './routes/maquinas'
-import { Route as MantenimientosRouteImport } from './routes/mantenimientos'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as FichasTecnicasRouteImport } from './routes/fichas-tecnicas'
-import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TalleresExternosIdRouteImport } from './routes/talleres-externos.$id'
-import { Route as MaquinasIdRouteImport } from './routes/maquinas.$id'
+import { Route as ConfiguracionRouteImport } from './routes/configuracion'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FichasTecnicasRouteImport } from './routes/fichas-tecnicas'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MantenimientosRouteImport } from './routes/mantenimientos'
+import { Route as MaquinasRouteImport } from './routes/maquinas'
+import { Route as NotificacionesRouteImport } from './routes/notificaciones'
+import { Route as RegistroUsoRouteImport } from './routes/registro-uso'
+import { Route as ReportesRouteImport } from './routes/reportes'
+import { Route as TalleresExternosRouteImport } from './routes/talleres-externos'
+import { Route as TiposMantenimientoRouteImport } from './routes/tipos-mantenimiento'
+import { Route as UsoMaquinasRouteImport } from './routes/uso-maquinas'
 import { Route as MantenimientosIdRouteImport } from './routes/mantenimientos.$id'
+import { Route as MaquinasIdRouteImport } from './routes/maquinas.$id'
+import { Route as TalleresExternosIdRouteImport } from './routes/talleres-externos.$id'
 
-const UsoMaquinasRoute = UsoMaquinasRouteImport.update({
-  id: '/uso-maquinas',
-  path: '/uso-maquinas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TiposMantenimientoRoute = TiposMantenimientoRouteImport.update({
-  id: '/tipos-mantenimiento',
-  path: '/tipos-mantenimiento',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TalleresExternosRoute = TalleresExternosRouteImport.update({
-  id: '/talleres-externos',
-  path: '/talleres-externos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReportesRoute = ReportesRouteImport.update({
-  id: '/reportes',
-  path: '/reportes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotificacionesRoute = NotificacionesRouteImport.update({
-  id: '/notificaciones',
-  path: '/notificaciones',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MaquinasRoute = MaquinasRouteImport.update({
-  id: '/maquinas',
-  path: '/maquinas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MantenimientosRoute = MantenimientosRouteImport.update({
-  id: '/mantenimientos',
-  path: '/mantenimientos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FichasTecnicasRoute = FichasTecnicasRouteImport.update({
-  id: '/fichas-tecnicas',
-  path: '/fichas-tecnicas',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracionRoute = ConfiguracionRouteImport.update({
@@ -74,35 +36,87 @@ const ConfiguracionRoute = ConfiguracionRouteImport.update({
   path: '/configuracion',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TalleresExternosIdRoute = TalleresExternosIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => TalleresExternosRoute,
+const FichasTecnicasRoute = FichasTecnicasRouteImport.update({
+  id: '/fichas-tecnicas',
+  path: '/fichas-tecnicas',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const MaquinasIdRoute = MaquinasIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => MaquinasRoute,
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MantenimientosRoute = MantenimientosRouteImport.update({
+  id: '/mantenimientos',
+  path: '/mantenimientos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaquinasRoute = MaquinasRouteImport.update({
+  id: '/maquinas',
+  path: '/maquinas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificacionesRoute = NotificacionesRouteImport.update({
+  id: '/notificaciones',
+  path: '/notificaciones',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegistroUsoRoute = RegistroUsoRouteImport.update({
+  id: '/registro-uso',
+  path: '/registro-uso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportesRoute = ReportesRouteImport.update({
+  id: '/reportes',
+  path: '/reportes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TalleresExternosRoute = TalleresExternosRouteImport.update({
+  id: '/talleres-externos',
+  path: '/talleres-externos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TiposMantenimientoRoute = TiposMantenimientoRouteImport.update({
+  id: '/tipos-mantenimiento',
+  path: '/tipos-mantenimiento',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsoMaquinasRoute = UsoMaquinasRouteImport.update({
+  id: '/uso-maquinas',
+  path: '/uso-maquinas',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MantenimientosIdRoute = MantenimientosIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => MantenimientosRoute,
 } as any)
+const MaquinasIdRoute = MaquinasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => MaquinasRoute,
+} as any)
+const TalleresExternosIdRoute = TalleresExternosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => TalleresExternosRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/dashboard': typeof DashboardRoute
   '/fichas-tecnicas': typeof FichasTecnicasRoute
   '/login': typeof LoginRoute
   '/mantenimientos': typeof MantenimientosRouteWithChildren
   '/maquinas': typeof MaquinasRouteWithChildren
   '/notificaciones': typeof NotificacionesRoute
+  '/registro-uso': typeof RegistroUsoRoute
   '/reportes': typeof ReportesRoute
   '/talleres-externos': typeof TalleresExternosRouteWithChildren
   '/tipos-mantenimiento': typeof TiposMantenimientoRoute
@@ -114,11 +128,13 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/dashboard': typeof DashboardRoute
   '/fichas-tecnicas': typeof FichasTecnicasRoute
   '/login': typeof LoginRoute
   '/mantenimientos': typeof MantenimientosRouteWithChildren
   '/maquinas': typeof MaquinasRouteWithChildren
   '/notificaciones': typeof NotificacionesRoute
+  '/registro-uso': typeof RegistroUsoRoute
   '/reportes': typeof ReportesRoute
   '/talleres-externos': typeof TalleresExternosRouteWithChildren
   '/tipos-mantenimiento': typeof TiposMantenimientoRoute
@@ -131,11 +147,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/dashboard': typeof DashboardRoute
   '/fichas-tecnicas': typeof FichasTecnicasRoute
   '/login': typeof LoginRoute
   '/mantenimientos': typeof MantenimientosRouteWithChildren
   '/maquinas': typeof MaquinasRouteWithChildren
   '/notificaciones': typeof NotificacionesRoute
+  '/registro-uso': typeof RegistroUsoRoute
   '/reportes': typeof ReportesRoute
   '/talleres-externos': typeof TalleresExternosRouteWithChildren
   '/tipos-mantenimiento': typeof TiposMantenimientoRoute
@@ -149,11 +167,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/configuracion'
+    | '/dashboard'
     | '/fichas-tecnicas'
     | '/login'
     | '/mantenimientos'
     | '/maquinas'
     | '/notificaciones'
+    | '/registro-uso'
     | '/reportes'
     | '/talleres-externos'
     | '/tipos-mantenimiento'
@@ -165,11 +185,13 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/configuracion'
+    | '/dashboard'
     | '/fichas-tecnicas'
     | '/login'
     | '/mantenimientos'
     | '/maquinas'
     | '/notificaciones'
+    | '/registro-uso'
     | '/reportes'
     | '/talleres-externos'
     | '/tipos-mantenimiento'
@@ -181,11 +203,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/configuracion'
+    | '/dashboard'
     | '/fichas-tecnicas'
     | '/login'
     | '/mantenimientos'
     | '/maquinas'
     | '/notificaciones'
+    | '/registro-uso'
     | '/reportes'
     | '/talleres-externos'
     | '/tipos-mantenimiento'
@@ -198,11 +222,13 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ConfiguracionRoute: typeof ConfiguracionRoute
+  DashboardRoute: typeof DashboardRoute
   FichasTecnicasRoute: typeof FichasTecnicasRoute
   LoginRoute: typeof LoginRoute
   MantenimientosRoute: typeof MantenimientosRouteWithChildren
   MaquinasRoute: typeof MaquinasRouteWithChildren
   NotificacionesRoute: typeof NotificacionesRoute
+  RegistroUsoRoute: typeof RegistroUsoRoute
   ReportesRoute: typeof ReportesRoute
   TalleresExternosRoute: typeof TalleresExternosRouteWithChildren
   TiposMantenimientoRoute: typeof TiposMantenimientoRoute
@@ -211,67 +237,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/uso-maquinas': {
-      id: '/uso-maquinas'
-      path: '/uso-maquinas'
-      fullPath: '/uso-maquinas'
-      preLoaderRoute: typeof UsoMaquinasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tipos-mantenimiento': {
-      id: '/tipos-mantenimiento'
-      path: '/tipos-mantenimiento'
-      fullPath: '/tipos-mantenimiento'
-      preLoaderRoute: typeof TiposMantenimientoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/talleres-externos': {
-      id: '/talleres-externos'
-      path: '/talleres-externos'
-      fullPath: '/talleres-externos'
-      preLoaderRoute: typeof TalleresExternosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reportes': {
-      id: '/reportes'
-      path: '/reportes'
-      fullPath: '/reportes'
-      preLoaderRoute: typeof ReportesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notificaciones': {
-      id: '/notificaciones'
-      path: '/notificaciones'
-      fullPath: '/notificaciones'
-      preLoaderRoute: typeof NotificacionesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/maquinas': {
-      id: '/maquinas'
-      path: '/maquinas'
-      fullPath: '/maquinas'
-      preLoaderRoute: typeof MaquinasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mantenimientos': {
-      id: '/mantenimientos'
-      path: '/mantenimientos'
-      fullPath: '/mantenimientos'
-      preLoaderRoute: typeof MantenimientosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/fichas-tecnicas': {
-      id: '/fichas-tecnicas'
-      path: '/fichas-tecnicas'
-      fullPath: '/fichas-tecnicas'
-      preLoaderRoute: typeof FichasTecnicasRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracion': {
@@ -281,19 +251,89 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfiguracionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/talleres-externos/$id': {
-      id: '/talleres-externos/$id'
+    '/fichas-tecnicas': {
+      id: '/fichas-tecnicas'
+      path: '/fichas-tecnicas'
+      fullPath: '/fichas-tecnicas'
+      preLoaderRoute: typeof FichasTecnicasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mantenimientos': {
+      id: '/mantenimientos'
+      path: '/mantenimientos'
+      fullPath: '/mantenimientos'
+      preLoaderRoute: typeof MantenimientosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maquinas': {
+      id: '/maquinas'
+      path: '/maquinas'
+      fullPath: '/maquinas'
+      preLoaderRoute: typeof MaquinasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notificaciones': {
+      id: '/notificaciones'
+      path: '/notificaciones'
+      fullPath: '/notificaciones'
+      preLoaderRoute: typeof NotificacionesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/registro-uso': {
+      id: '/registro-uso'
+      path: '/registro-uso'
+      fullPath: '/registro-uso'
+      preLoaderRoute: typeof RegistroUsoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reportes': {
+      id: '/reportes'
+      path: '/reportes'
+      fullPath: '/reportes'
+      preLoaderRoute: typeof ReportesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/talleres-externos': {
+      id: '/talleres-externos'
+      path: '/talleres-externos'
+      fullPath: '/talleres-externos'
+      preLoaderRoute: typeof TalleresExternosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tipos-mantenimiento': {
+      id: '/tipos-mantenimiento'
+      path: '/tipos-mantenimiento'
+      fullPath: '/tipos-mantenimiento'
+      preLoaderRoute: typeof TiposMantenimientoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/uso-maquinas': {
+      id: '/uso-maquinas'
+      path: '/uso-maquinas'
+      fullPath: '/uso-maquinas'
+      preLoaderRoute: typeof UsoMaquinasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mantenimientos/$id': {
+      id: '/mantenimientos/$id'
       path: '/$id'
-      fullPath: '/talleres-externos/$id'
-      preLoaderRoute: typeof TalleresExternosIdRouteImport
-      parentRoute: typeof TalleresExternosRoute
+      fullPath: '/mantenimientos/$id'
+      preLoaderRoute: typeof MantenimientosIdRouteImport
+      parentRoute: typeof MantenimientosRoute
     }
     '/maquinas/$id': {
       id: '/maquinas/$id'
@@ -302,12 +342,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MaquinasIdRouteImport
       parentRoute: typeof MaquinasRoute
     }
-    '/mantenimientos/$id': {
-      id: '/mantenimientos/$id'
+    '/talleres-externos/$id': {
+      id: '/talleres-externos/$id'
       path: '/$id'
-      fullPath: '/mantenimientos/$id'
-      preLoaderRoute: typeof MantenimientosIdRouteImport
-      parentRoute: typeof MantenimientosRoute
+      fullPath: '/talleres-externos/$id'
+      preLoaderRoute: typeof TalleresExternosIdRouteImport
+      parentRoute: typeof TalleresExternosRoute
     }
   }
 }
@@ -350,11 +390,13 @@ const TalleresExternosRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ConfiguracionRoute: ConfiguracionRoute,
+  DashboardRoute: DashboardRoute,
   FichasTecnicasRoute: FichasTecnicasRoute,
   LoginRoute: LoginRoute,
   MantenimientosRoute: MantenimientosRouteWithChildren,
   MaquinasRoute: MaquinasRouteWithChildren,
   NotificacionesRoute: NotificacionesRoute,
+  RegistroUsoRoute: RegistroUsoRoute,
   ReportesRoute: ReportesRoute,
   TalleresExternosRoute: TalleresExternosRouteWithChildren,
   TiposMantenimientoRoute: TiposMantenimientoRoute,

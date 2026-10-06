@@ -20,7 +20,7 @@ import {
 } from "@/context/MantePro";
 import {
   ArrowLeft, Pencil, Plus, Trash2, Wrench, Factory, Activity, Clock,
-  Gauge, Percent, Printer, Upload, FileText, Image as ImageIcon, Download, DollarSign,
+  Gauge, Percent, Printer, Upload, FileText, Image as ImageIcon, Download, DollarSign, Eye, FileX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { printMachineSheet } from "@/lib/print-machines";
@@ -96,7 +96,7 @@ function MachineDetail() {
           <span className="font-mono text-xs bg-primary/15 text-primary px-2 py-0.5 rounded border border-primary/30">{machine.code}</span>
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <Button size="sm" variant="ghost" onClick={() => setEdit(true)}><Pencil className="h-4 w-4 mr-1" /> Editar</Button>
+          <Button size="sm" variant="outline" onClick={() => setEdit(true)}><Pencil className="h-4 w-4 mr-1" /> Editar</Button>
           <Button size="sm" variant="outline" onClick={() => printMachineSheet(machine, settings.institutionName)}>
             <Printer className="h-4 w-4 mr-1" /> Imprimir Ficha
           </Button>
@@ -177,7 +177,7 @@ function MachineDetail() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
+                    <thead className="bg-secondary/60 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
                       <tr>
                         <th className="text-left p-3 w-12">N°</th>
                         <th className="text-left p-3">Componente</th>
@@ -189,7 +189,7 @@ function MachineDetail() {
                     </thead>
                     <tbody>
                       {machine.components.map((c, i) => (
-                        <tr key={c.id} className="border-t border-border hover:bg-secondary/30">
+                        <tr key={c.id} className="border-t border-border/70 hover:bg-secondary/40 transition-colors">
                           <td className="p-3 font-mono text-muted-foreground">{i + 1}</td>
                           <td className="p-3 font-medium">{c.name}</td>
                           <td className="p-3 text-muted-foreground">{c.function}</td>
@@ -459,6 +459,7 @@ function MachineDocs({
                     {String(d.category)} · {formatDate(d.uploadedAt.slice(0, 10))}
                   </div>
                   <div className="flex gap-1 pt-1">
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setPreview(d)}><Eye className="h-3.5 w-3.5" /></Button>
                     <a href={d.dataUrl} download={d.name}>
                       <Button size="sm" variant="ghost" className="h-7 px-2"><Download className="h-3.5 w-3.5" /></Button>
                     </a>
@@ -473,11 +474,42 @@ function MachineDocs({
         </div>
       )}
 
-      {preview && (
-        <div className="fixed inset-0 z-50 bg-black/80 grid place-items-center p-4" onClick={() => setPreview(null)}>
-          <img src={preview.dataUrl} alt={preview.name} className="max-h-full max-w-full rounded-md" />
-        </div>
-      )}
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden rounded-2xl">
+          {preview && (
+            <>
+              <DialogHeader className="pl-5 pr-14 py-3.5 border-b border-border flex-row items-center justify-between space-y-0">
+                <div className="min-w-0 pr-8">
+                  <DialogTitle className="text-sm font-semibold truncate" title={preview.name}>{preview.name}</DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">{String(preview.category)}</p>
+                </div>
+                <a href={preview.dataUrl} download={preview.name}>
+                  <Button size="sm" variant="outline" className="gap-1.5 shrink-0">
+                    <Download className="h-3.5 w-3.5" /> Descargar
+                  </Button>
+                </a>
+              </DialogHeader>
+              <div className="bg-muted/30 flex items-center justify-center" style={{ height: "72vh" }}>
+                {preview.mime.startsWith("image/") ? (
+                  <img src={preview.dataUrl} alt={preview.name} className="max-h-full max-w-full object-contain" />
+                ) : preview.mime === "application/pdf" ? (
+                  <iframe src={preview.dataUrl} title={preview.name} className="h-full w-full" />
+                ) : (
+                  <div className="flex flex-col items-center gap-3 text-center px-6">
+                    <div className="grid h-14 w-14 place-items-center rounded-full bg-secondary text-muted-foreground">
+                      <FileX className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">Vista previa no disponible</div>
+                      <div className="text-xs text-muted-foreground mt-1">Este tipo de archivo no se puede mostrar aquí. Descárgalo para abrirlo.</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

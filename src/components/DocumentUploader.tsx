@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
-import { Upload, FileText, Image as ImageIcon, Trash2, Eye, Download } from "lucide-react";
+import { Upload, FileText, Image as ImageIcon, Trash2, Eye, Download, FileX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DOC_CATEGORIES, type AppDocument, type DocCategory } from "@/context/MantePro";
 import { toast } from "sonner";
 
@@ -15,6 +16,7 @@ export const humanSize = (n: number) =>
   n < 1024 ? `${n} B` : n < 1024 * 1024 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1024 / 1024).toFixed(2)} MB`;
 
 export function isImage(d: AppDocument) { return d.mime.startsWith("image/"); }
+export function isPdf(d: AppDocument) { return d.mime === "application/pdf"; }
 
 export function DocumentUploader({
   documents,
@@ -101,7 +103,7 @@ export function DocumentUploader({
                 </div>
                 <div className="text-[10px] text-muted-foreground">{d.category} · {humanSize(d.size)}</div>
                 <div className="flex gap-1 pt-1">
-                  <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => isImage(d) ? setPreview(d) : window.open(d.dataUrl, "_blank")}>
+                  <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setPreview(d)}>
                     <Eye className="h-3.5 w-3.5" />
                   </Button>
                   <a href={d.dataUrl} download={d.name}>
@@ -119,11 +121,42 @@ export function DocumentUploader({
         </div>
       )}
 
-      {preview && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setPreview(null)}>
-          <img src={preview.dataUrl} alt={preview.name} className="max-h-full max-w-full rounded-md" />
-        </div>
-      )}
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden rounded-2xl">
+          {preview && (
+            <>
+              <DialogHeader className="pl-5 pr-14 py-3.5 border-b border-border flex-row items-center justify-between space-y-0">
+                <div className="min-w-0 pr-8">
+                  <DialogTitle className="text-sm font-semibold truncate" title={preview.name}>{preview.name}</DialogTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">{preview.category} · {humanSize(preview.size)}</p>
+                </div>
+                <a href={preview.dataUrl} download={preview.name}>
+                  <Button size="sm" variant="outline" className="gap-1.5 shrink-0">
+                    <Download className="h-3.5 w-3.5" /> Descargar
+                  </Button>
+                </a>
+              </DialogHeader>
+              <div className="bg-muted/30 flex items-center justify-center" style={{ height: "72vh" }}>
+                {isImage(preview) ? (
+                  <img src={preview.dataUrl} alt={preview.name} className="max-h-full max-w-full object-contain" />
+                ) : isPdf(preview) ? (
+                  <iframe src={preview.dataUrl} title={preview.name} className="h-full w-full" />
+                ) : (
+                  <div className="flex flex-col items-center gap-3 text-center px-6">
+                    <div className="grid h-14 w-14 place-items-center rounded-full bg-secondary text-muted-foreground">
+                      <FileX className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">Vista previa no disponible</div>
+                      <div className="text-xs text-muted-foreground mt-1">Este tipo de archivo no se puede mostrar aquí. Descárgalo para abrirlo.</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
